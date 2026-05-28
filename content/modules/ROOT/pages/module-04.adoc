@@ -1,0 +1,87 @@
+= SSL Reverse Proxy
+
+Applications in production typically sit behind a reverse proxy that handles TLS.
+This module runs the Flask app and a Caddy web server in a pod — shared network namespace, no exposed ports between containers, TLS terminated at Caddy.
+
+`hi/caddy:latest` is a hardened Caddy image from the same HI catalog.
+Its `tls internal` directive generates a self-signed CA and issues a certificate automatically.
+
+== Create a Pod
+
+Pods in Podman share a network namespace.
+Caddy can reach Flask on `localhost:8080` without any explicit container-to-container networking.
+
+[source,bash,role=execute]
+----
+podman pod create --name rhhi-pod -p 8080:8080 -p 8443:8443
+----
+
+== Start Flask in the Pod
+
+[source,bash,role=execute]
+----
+podman run -d --pod rhhi-pod --name rhhi-flask rhhi-demo:v1
+----
+
+== Start Caddy in the Pod
+
+The Caddyfile is pre-staged at `~/webserver/Caddyfile`:
+
+[source,bash,role=execute]
+----
+cat ~/webserver/Caddyfile
+----
+
+It configures Caddy to listen on `:8443` with `tls internal` and reverse proxy to `localhost:8080`.
+
+[source,bash,role=execute]
+----
+podman run -d --pod rhhi-pod --name rhhi-caddy \
+  -v ~/webserver/Caddyfile:/etc/caddy/Caddyfile:Z \
+  registry.access.redhat.com/hi/caddy:latest
+----
+
+[source,bash,role=execute]
+----
+podman pod ps
+----
+
+== Try to Access via the Caddy Route
+
+[source,bash,role=execute]
+----
+echo "https://caddy-${GUID}.${DOMAIN}/"
+----
+
+Open that URL in your browser.
+You'll see a certificate warning — Caddy generated its own CA and issued a self-signed certificate.
+Your browser doesn't trust that CA.
+
+The direct Flask route still works over plain HTTP:
+
+[source,bash,role=execute]
+----
+echo "http://flask-${GUID}.${DOMAIN}/"
+----
+
+`curl` from the terminal also fails against the Caddy endpoint:
+
+[source,bash,role=execute]
+----
+curl https://caddy-${GUID}.${DOMAIN}/
+----
+
+[source,bash,role=execute]
+----
+curl -k https://caddy-${GUID}.${DOMAIN}/
+----
+
+The `-k` flag disables certificate verification — the connection works, but you've bypassed the trust model entirely.
+
+== What's the Problem?
+
+Caddy's `tls internal` generates a real CA and issues a valid certificate — but nothing trusts that CA.
+Adding `-k` works but defeats TLS.
+The right solution is to extract the CA certificate and add it to the trust store of whatever client needs to connect.
+
+Click *Next* to build a curl image with the CA embedded.

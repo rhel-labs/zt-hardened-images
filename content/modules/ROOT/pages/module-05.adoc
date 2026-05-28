@@ -1,0 +1,89 @@
+= Trusted CA
+
+Trusting a custom CA in a container requires embedding it into the image's trust store.
+This module extracts the CA Caddy generated, adds it to a custom `hi/curl` image using RHEL's `trust anchor` mechanism, and uses that image to make a verified TLS request.
+
+The `hi/curl:latest-builder` image includes the `trust` command.
+The final `hi/curl:latest` image is the distroless runtime.
+The pattern is the same multi-stage approach used in modules 02 and 03.
+
+== Extract the CA Certificate
+
+Caddy writes its internal CA certificate to `/data/caddy/pki/authorities/local/root.crt` inside the Caddy container.
+
+[source,bash,role=execute]
+----
+podman cp rhhi-caddy:/data/caddy/pki/authorities/local/root.crt ~/caddy-root.crt
+----
+
+[source,bash,role=execute]
+----
+openssl x509 -in ~/caddy-root.crt -noout -subject -dates
+----
+
+== Write a Custom Containerfile
+
+[source,bash,role=execute]
+----
+cat > ~/Containerfile.curl << 'EOF'
+FROM registry.access.redhat.com/hi/curl:latest-builder AS build
+COPY caddy-root.crt /tmp/caddy-root.crt
+RUN trust anchor /tmp/caddy-root.crt
+
+FROM registry.access.redhat.com/hi/curl:latest
+COPY --from=build /etc/pki /etc/pki
+EOF
+----
+
+The `trust anchor` command registers the CA certificate with the system trust store.
+The final stage copies the updated `/etc/pki` directory from the builder into the lean runtime image.
+
+== Build the Custom curl Image
+
+[source,bash,role=execute]
+----
+podman build -t rhhi-curl:trusted -f ~/Containerfile.curl ~
+----
+
+== Verify TLS
+
+Use the standard `hi/curl` image first — it doesn't trust the Caddy CA:
+
+[source,bash,role=execute]
+----
+podman run --rm registry.access.redhat.com/hi/curl:latest \
+  curl https://caddy-${GUID}.${DOMAIN}/
+----
+
+Now use the custom image with the embedded CA:
+
+[source,bash,role=execute]
+----
+podman run --rm rhhi-curl:trusted \
+  curl https://caddy-${GUID}.${DOMAIN}/
+----
+
+The request succeeds without `-k`.
+The CA is trusted at the image level — no runtime flags needed, no certificate verification skipped.
+
+== What Changed?
+
+The application, the Caddyfile, and the network configuration are all unchanged.
+The only difference is that `rhhi-curl:trusted` was built with knowledge of the CA that issued the server's certificate.
+
+This is how custom CA trust works in container environments: not a system-wide flag, not a volume mount at runtime, but a build-time decision embedded in the image.
+
+== Wrap Up
+
+Over these five modules, you've used the same Flask application on four different base images:
+
+[options="header"]
+|===
+| Image | Base | Key Characteristic
+| `rhhi-demo:ubi`   | `ubi9/python-312`     | General-purpose, full package set
+| `rhhi-demo:v1`    | `hi/python:3.12`      | Curated runtime, smaller CVE surface
+| `rhhi-demo:fips`  | `hi/python:3.12-fips` | FIPS enforcement at OpenSSL level
+| `rhhi-curl:trusted` | `hi/curl:latest`    | Custom CA trust embedded at build time
+|===
+
+Red Hat Hardened Images are production-focused variants with a consistent catalog, predictable rebuild cadence, and variant support (default, builder, fips) designed to match the full container lifecycle.

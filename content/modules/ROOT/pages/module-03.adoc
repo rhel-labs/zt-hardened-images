@@ -1,0 +1,83 @@
+= FIPS Variant
+
+The Federal Information Processing Standard (FIPS) 140-3 mandates which cryptographic algorithms are approved for use in regulated environments.
+Red Hat Hardened Images include a FIPS variant of selected runtime images.
+These images enforce FIPS policy at the OpenSSL level — approved algorithms are allowed, non-approved algorithms raise an error.
+
+MD5 is not FIPS-approved.
+The `rhhi-demo` crypto demo will make that visible.
+
+== Build the FIPS Image
+
+`Containerfile.fips` follows the same multi-stage pattern as the hardened image, but uses `hi/python:3.12-fips` as the runtime stage.
+
+[source,bash,role=execute]
+----
+podman build -t rhhi-demo:fips -f ~/flask/Containerfile.fips ~/flask
+----
+
+[NOTE]
+====
+The builder stage is identical to `Containerfile.hardened` — pip runs in the standard builder, not the FIPS runtime.
+The FIPS policy applies at runtime, not during dependency installation.
+====
+
+== Run the FIPS Image
+
+[source,bash,role=execute]
+----
+podman run -d --name rhhi-fips -p 8080:8080 rhhi-demo:fips
+----
+
+[source,bash,role=execute]
+----
+echo "http://flask-${GUID}.${DOMAIN}/crypto-demo"
+----
+
+Navigate to that URL and submit the form.
+
+You'll see something like:
+
+[options="header"]
+|===
+| Algorithm | Result
+| MD5       | ERROR: [digital envelope routines] unsupported
+| SHA256    | a948904f2f0f479b8f936648a91d4...
+| SHA512    | 36bbe50ed96841d10443bcb67034...
+|===
+
+The MD5 row shows an error.
+SHA-256 and SHA-512 are FIPS-approved and return results normally.
+The FIPS policy is enforced by the container's OpenSSL, not by the application code.
+The application didn't change — the base image did.
+
+== Verify the Difference
+
+Stop the FIPS container and try the same request against the hardened non-FIPS image:
+
+[source,bash,role=execute]
+----
+podman stop rhhi-fips && podman rm rhhi-fips
+----
+
+[source,bash,role=execute]
+----
+podman run -d --name rhhi-hardened -p 8080:8080 rhhi-demo:v1
+----
+
+Visit the same URL — MD5 now returns a hex digest.
+
+[source,bash,role=execute]
+----
+podman stop rhhi-hardened && podman rm rhhi-hardened
+----
+
+== When Does This Matter?
+
+A FIPS-compliant base image enforces policy without requiring code changes.
+Applications that call non-approved algorithms fail at runtime, surfacing compliance gaps before deployment to regulated infrastructure.
+
+The same application, unmodified, runs on UBI, hardened, or FIPS — but its behavior differs because the runtime enforces different policy.
+This is the difference between hoping your application is compliant and verifying it is.
+
+Click *Next* to add a TLS reverse proxy in front of the application.

@@ -1,0 +1,79 @@
+= UBI Baseline
+
+Red Hat Hardened Images (HI) are a catalog of container images designed for production use: smaller attack surface, non-root by default, rebuilt rapidly when CVEs are patched.
+This lab explores the practical difference between a standard UBI Python image and HI Python images by running the same application on each base.
+
+== The Application
+
+The lab app is `rhhi-demo`, a small Flask web app pre-staged in `~/flask/`.
+It serves a crypto demo at `/crypto-demo` that hashes submitted text using MD5, SHA-256, and SHA-512.
+
+[source,bash,role=execute]
+----
+ls ~/flask/
+----
+
+You'll see three Containerfiles (`Containerfile.ubi`, `Containerfile.hardened`, `Containerfile.fips`) and `app.py`.
+
+== Build the UBI Image
+
+`Containerfile.ubi` builds a single-stage image from `ubi9/python-312` — the standard Red Hat Universal Base Image for Python 3.12.
+
+[source,bash,role=execute]
+----
+podman build -t rhhi-demo:ubi -f ~/flask/Containerfile.ubi ~/flask
+----
+
+[source,bash,role=execute]
+----
+podman images rhhi-demo:ubi
+----
+
+== Run the Application
+
+[source,bash,role=execute]
+----
+podman run -d --name rhhi-ubi -p 8080:8080 rhhi-demo:ubi
+----
+
+[source,bash,role=execute]
+----
+podman ps
+----
+
+Get the URL for your lab instance:
+
+[source,bash,role=execute]
+----
+echo "http://flask-${GUID}.${DOMAIN}/crypto-demo"
+----
+
+Open that URL in a new browser tab.
+Enter some text and click *Hash*.
+All three algorithms — MD5, SHA-256, SHA-512 — should return a hex digest.
+
+== What's in the Image?
+
+Look at the image size and package count:
+
+[source,bash,role=execute]
+----
+podman images rhhi-demo:ubi --format "{{.Size}}"
+----
+
+[source,bash,role=execute]
+----
+podman run --rm rhhi-demo:ubi rpm -qa | wc -l
+----
+
+UBI Python images include a full set of development and runtime RPMs that covers a broad set of use cases.
+That breadth is convenient for development but carries a larger surface area in production.
+
+== Stop the Container
+
+[source,bash,role=execute]
+----
+podman stop rhhi-ubi && podman rm rhhi-ubi
+----
+
+Click *Next* to build a hardened alternative.
