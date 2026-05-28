@@ -1,10 +1,7 @@
-= SSL Reverse Proxy
+= TLS Reverse Proxy
 
 Applications in production typically sit behind a reverse proxy that handles TLS.
-This module runs the Flask app and a Caddy web server in a pod — shared network namespace, no exposed ports between containers, TLS terminated at Caddy.
-
-`hi/caddy:latest` is a hardened Caddy image from the same HI catalog.
-Its `tls internal` directive generates a self-signed CA and issues a certificate automatically.
+This module runs Flask and Caddy in a pod, observes the certificate trust problem, and resolves it by embedding the CA into a custom `hi/curl` image.
 
 == Create a Pod
 
@@ -41,47 +38,94 @@ podman run -d --pod rhhi-pod --name rhhi-caddy \
   registry.access.redhat.com/hi/caddy:latest
 ----
 
-[source,bash,role=execute]
-----
-podman pod ps
-----
-
-== Try to Access via the Caddy Route
+== Observe the Certificate Problem
 
 [source,bash,role=execute]
 ----
-echo "https://caddy-${GUID}.${DOMAIN}/"
+echo "https://caddy-{guid}.{domain}/"
 ----
 
 Open that URL in your browser.
-You'll see a certificate warning — Caddy generated its own CA and issued a self-signed certificate.
+You'll see a certificate warning — Caddy generated its own CA and issued a certificate signed by it.
 Your browser doesn't trust that CA.
 
-The direct Flask route still works over plain HTTP:
+`curl` from the terminal fails the same way:
 
 [source,bash,role=execute]
 ----
-echo "http://flask-${GUID}.${DOMAIN}/"
+curl https://caddy-{guid}.{domain}/
 ----
 
-`curl` from the terminal also fails against the Caddy endpoint:
+Using `-k` bypasses verification and the connection works — but that defeats TLS entirely.
+The right fix is to trust the CA, not skip verification.
+
+== Extract the CA Certificate
+
+Caddy writes its internal CA to `/data/caddy/pki/authorities/local/root.crt` inside the running container.
 
 [source,bash,role=execute]
 ----
-curl https://caddy-${GUID}.${DOMAIN}/
+podman cp rhhi-caddy:/data/caddy/pki/authorities/local/root.crt ~/caddy-root.crt
 ----
 
 [source,bash,role=execute]
 ----
-curl -k https://caddy-${GUID}.${DOMAIN}/
+openssl x509 -in ~/caddy-root.crt -noout -subject -dates
 ----
 
-The `-k` flag disables certificate verification — the connection works, but you've bypassed the trust model entirely.
+== Build a Trusted curl Image
 
-== What's the Problem?
+`hi/curl:latest-builder` includes the `trust` command.
+Use it in a builder stage to add the CA, then copy only the resulting PKI trust files into the lean runtime.
 
-Caddy's `tls internal` generates a real CA and issues a valid certificate — but nothing trusts that CA.
-Adding `-k` works but defeats TLS.
-The right solution is to extract the CA certificate and add it to the trust store of whatever client needs to connect.
+[source,bash,role=execute]
+----
+cat > ~/Containerfile.curl << 'EOF'
+FROM registry.access.redhat.com/hi/curl:latest-builder AS build
+COPY caddy-root.crt /tmp/caddy-root.crt
+USER root
+RUN trust anchor /tmp/caddy-root.crt
 
-Click *Next* to build a curl image with the CA embedded.
+FROM registry.access.redhat.com/hi/curl:latest
+COPY --from=build /etc/pki/ca-trust/extracted /etc/pki/ca-trust/extracted
+EOF
+----
+
+[source,bash,role=execute]
+----
+podman build -t rhhi-curl:trusted -f ~/Containerfile.curl ~
+----
+
+== Verify TLS
+
+The standard `hi/curl` image doesn't trust the Caddy CA:
+
+[source,bash,role=execute]
+----
+podman run --rm registry.access.redhat.com/hi/curl:latest https://caddy-{guid}.{domain}/
+----
+
+The custom image does:
+
+[source,bash,role=execute]
+----
+podman run --rm rhhi-curl:trusted https://caddy-{guid}.{domain}/
+----
+
+The request succeeds without `-k`.
+The CA is trusted at the image level — no runtime flags, no verification skipped.
+
+== Wrap Up
+
+Over these four modules, the same Flask application ran on four different bases:
+
+[options="header"]
+|===
+| Image | Base | Key Characteristic
+| `rhhi-demo:ubi`     | `ubi9/python-312`     | General-purpose, full package set
+| `rhhi-demo:builder` | `hi/python:3.12-builder` | Builder tools present — not for production
+| `rhhi-demo:v1`      | `hi/python:3.12`      | Curated runtime, minimal CVE surface
+| `rhhi-demo:fips`    | `hi/python:3.12-fips` | FIPS enforcement at the OpenSSL level
+|===
+
+Red Hat Hardened Images are production-focused variants with a consistent catalog, predictable rebuild cadence, and variant support (default, builder, fips) designed to match the full container lifecycle.

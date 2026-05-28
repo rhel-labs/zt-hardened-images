@@ -51,16 +51,14 @@ Use the standard `hi/curl` image first — it doesn't trust the Caddy CA:
 
 [source,bash,role=execute]
 ----
-podman run --rm registry.access.redhat.com/hi/curl:latest \
-  curl https://caddy-${GUID}.${DOMAIN}/
+podman run --rm registry.access.redhat.com/hi/curl:latest https://caddy-{guid}.{domain}/
 ----
 
 Now use the custom image with the embedded CA:
 
 [source,bash,role=execute]
 ----
-podman run --rm rhhi-curl:trusted \
-  curl https://caddy-${GUID}.${DOMAIN}/
+podman run --rm rhhi-curl:trusted https://caddy-{guid}.{domain}/
 ----
 
 The request succeeds without `-k`.

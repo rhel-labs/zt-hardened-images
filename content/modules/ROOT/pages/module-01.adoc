@@ -1,7 +1,8 @@
 = UBI Baseline
 
 Red Hat Hardened Images (HI) are a catalog of container images designed for production use: smaller attack surface, non-root by default, rebuilt rapidly when CVEs are patched.
-This lab explores the practical difference between a standard UBI Python image and HI Python images by running the same application on each base.
+This lab runs the same Flask application on a UBI base, a hardened base, a FIPS-enforcing base, and behind a TLS reverse proxy.
+This module establishes the UBI baseline.
 
 == The Application
 
@@ -13,23 +14,25 @@ It serves a crypto demo at `/crypto-demo` that hashes submitted text using MD5, 
 ls ~/flask/
 ----
 
-You'll see three Containerfiles (`Containerfile.ubi`, `Containerfile.hardened`, `Containerfile.fips`) and `app.py`.
+You'll see the application code (`app.py`) and three Containerfiles: `Containerfile.ubi`, `Containerfile.hardened`, and `Containerfile.fips`.
 
-== Build the UBI Image
-
-`Containerfile.ubi` builds a single-stage image from `ubi9/python-312` — the standard Red Hat Universal Base Image for Python 3.12.
+== The UBI Containerfile
 
 [source,bash,role=execute]
 ----
-podman build -t rhhi-demo:ubi -f ~/flask/Containerfile.ubi ~/flask
+cat ~/flask/Containerfile.ubi
 ----
 
-[source,bash,role=execute]
-----
-podman images rhhi-demo:ubi
-----
+`ubi9/python-312` is Red Hat's general-purpose Python 3.12 base.
+Pip is pre-installed; Flask installs from external PyPI with an explicit `USER root`.
+A non-root runtime user requires an explicit `USER` directive — UBI does not enforce non-root by default.
+
+This Containerfile is the conventional approach.
+Keep it in mind as the comparison point for the rest of the lab.
 
 == Run the Application
+
+`rhhi-demo:ubi` has been pre-built.
 
 [source,bash,role=execute]
 ----
@@ -38,36 +41,23 @@ podman run -d --name rhhi-ubi -p 8080:8080 rhhi-demo:ubi
 
 [source,bash,role=execute]
 ----
-podman ps
+echo "http://flask-{guid}.{domain}/crypto-demo"
 ----
 
-Get the URL for your lab instance:
-
-[source,bash,role=execute]
-----
-echo "http://flask-${GUID}.${DOMAIN}/crypto-demo"
-----
-
-Open that URL in a new browser tab.
-Enter some text and click *Hash*.
-All three algorithms — MD5, SHA-256, SHA-512 — should return a hex digest.
+Navigate to that URL, enter some text, and click *Hash*.
+All three algorithms — MD5, SHA-256, SHA-512 — return a hex digest.
+MD5 succeeds here.
+Keep that in mind.
 
 == What's in the Image?
-
-Look at the image size and package count:
-
-[source,bash,role=execute]
-----
-podman images rhhi-demo:ubi --format "{{.Size}}"
-----
 
 [source,bash,role=execute]
 ----
 podman run --rm rhhi-demo:ubi rpm -qa | wc -l
 ----
 
-UBI Python images include a full set of development and runtime RPMs that covers a broad set of use cases.
-That breadth is convenient for development but carries a larger surface area in production.
+UBI Python includes packages that cover a broad range of use cases: build tools, development headers, documentation.
+That breadth is convenient for development but is surface area a production runtime does not need.
 
 == Stop the Container
 
@@ -76,4 +66,4 @@ That breadth is convenient for development but carries a larger surface area in 
 podman stop rhhi-ubi && podman rm rhhi-ubi
 ----
 
-Click *Next* to build a hardened alternative.
+Click *Next* to build on Red Hat Hardened Images and see what changes.

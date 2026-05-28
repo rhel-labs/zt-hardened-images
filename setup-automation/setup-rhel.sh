@@ -44,4 +44,8 @@ runuser -l rhel -c "podman pull registry.access.redhat.com/hi/curl:latest"
 runuser -l rhel -c "podman pull registry.access.redhat.com/hi/curl:latest-builder"
 echo "Base images pre-pulled" >> /tmp/progress.log
 
+# Pre-build UBI baseline image so module-01 participants don't wait for it
+runuser -l rhel -c "podman build -t rhhi-demo:ubi -f /home/rhel/flask/Containerfile.ubi /home/rhel/flask"
+echo "rhhi-demo:ubi pre-built" >> /tmp/progress.log
+
 echo "Setup complete" >> /tmp/progress.log

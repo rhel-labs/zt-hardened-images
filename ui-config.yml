@@ -14,13 +14,16 @@ antora:
       label: "FIPS Variant"
       solveButton: false
     - name: module-04
-      label: "SSL Reverse Proxy"
-      solveButton: false
-    - name: module-05
-      label: "Trusted CA"
+      label: "TLS Reverse Proxy"
       solveButton: false
 
 tabs:
   - name: ">_ terminal"
     url: /wetty
+  - name: "Flask App"
+    url: 'http://flask-${GUID}.${DOMAIN}/crypto-demo'
+    external: true
+  - name: "Caddy (TLS)"
+    url: 'https://caddy-${GUID}.${DOMAIN}/'
+    external: true
 

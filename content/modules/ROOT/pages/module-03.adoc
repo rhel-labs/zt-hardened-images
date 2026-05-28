@@ -31,7 +31,7 @@ podman run -d --name rhhi-fips -p 8080:8080 rhhi-demo:fips
 
 [source,bash,role=execute]
 ----
-echo "http://flask-${GUID}.${DOMAIN}/crypto-demo"
+echo "http://flask-{guid}.{domain}/crypto-demo"
 ----
 
 Navigate to that URL and submit the form.

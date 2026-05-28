@@ -1,26 +1,118 @@
 = Multi-Stage Hardened Build
 
-Red Hat Hardened Images for runtimes come in two variants: a `default` distroless runtime image and a `builder` variant that adds bash, dnf, and shadow-utils for the build stage.
-The pattern is a multi-stage build: install dependencies in the builder, then copy only what you need into the lean runtime.
+Red Hat Hardened Images for Python come in variants.
+The `default` variant is distroless — no shell, no package manager, only what the interpreter needs at runtime.
+The `builder` variant adds bash, dnf, and shadow-utils for dependency installation.
 
-== Build the Hardened Image
+Starting with the default variant shows what distroless means in practice.
 
-`Containerfile.hardened` uses `hi/python:3.12-builder` to install Flask dependencies into a prefix directory, then copies that prefix into the distroless `hi/python:3.12` runtime.
+== Try the Default Variant
+
+Write a single-stage Containerfile using the default `hi/python:3.12` runtime:
+
+[source,bash,role=execute]
+----
+cat > ~/flask/Containerfile.builder << 'EOF'
+FROM registry.access.redhat.com/hi/python:3.12
+USER root
+RUN pip install flask
+COPY app.py /app/app.py
+WORKDIR /app
+EXPOSE 8080
+CMD ["python3", "app.py"]
+EOF
+----
+
+[source,bash,role=execute]
+----
+podman build -t rhhi-demo:builder -f ~/flask/Containerfile.builder ~/flask
+----
+
+.*Expected output (partial):*
+----
+error running container: ... executable file `/bin/sh` not found: No such file or directory
+----
+
+The `RUN` instruction passes commands through a shell.
+`hi/python:3.12` has no shell — that is what distroless means.
+
+== Switch to the Builder Variant
+
+The `builder` variant adds bash specifically for build steps like this.
+Update the FROM line:
+
+[source,bash,role=execute]
+----
+sed -i 's/python:3.12$/python:3.12-builder/' ~/flask/Containerfile.builder
+----
+
+[source,bash,role=execute]
+----
+podman build -t rhhi-demo:builder -f ~/flask/Containerfile.builder ~/flask
+----
+
+The build succeeds.
+Run it to confirm the app works:
+
+[source,bash,role=execute]
+----
+podman run -d --name rhhi-builder -p 8080:8080 rhhi-demo:builder
+----
+
+[source,bash,role=execute]
+----
+echo "http://flask-{guid}.{domain}/crypto-demo"
+----
+
+[source,bash,role=execute]
+----
+podman stop rhhi-builder && podman rm rhhi-builder
+----
+
+== What's in the Builder Image?
+
+[source,bash,role=execute]
+----
+podman run --rm rhhi-demo:builder rpm -qa | wc -l
+----
+
+[source,bash,role=execute]
+----
+podman run --rm rhhi-demo:builder rpm -qa
+----
+
+The builder variant carries dnf, bash, shadow-utils, and their dependencies.
+These are needed at build time to install Flask.
+They are not needed to run Flask.
+Shipping this image to production means shipping a package manager and a shell.
+
+== The Multi-Stage Solution
+
+`Containerfile.hardened` separates the two concerns.
+Stage one uses the builder variant to install Flask into a prefix directory.
+Stage two copies only that prefix into the lean default runtime — the builder and its packages are discarded.
+
+[source,bash,role=execute]
+----
+cat ~/flask/Containerfile.hardened
+----
 
 [source,bash,role=execute]
 ----
 podman build -t rhhi-demo:v1 -f ~/flask/Containerfile.hardened ~/flask
 ----
 
-== Compare Image Sizes
+== Compare Package Counts
 
 [source,bash,role=execute]
 ----
-podman images rhhi-demo
+podman run --rm rhhi-demo:ubi rpm -qa | wc -l
+podman run --rm rhhi-demo:builder rpm -qa | wc -l
+podman run --rm rhhi-demo:v1 rpm -qa | wc -l
 ----
 
-The hardened runtime image is significantly smaller than the UBI baseline.
-Fewer bytes in the image means fewer packages, fewer files, and fewer CVE exposure points.
+The multi-stage runtime carries only what the interpreter needs at runtime.
+Build tools are in stage one and were never committed to the final image.
 
 == Run the Hardened Image
 
@@ -31,66 +123,15 @@ podman run -d --name rhhi-hardened -p 8080:8080 rhhi-demo:v1
 
 [source,bash,role=execute]
 ----
-echo "http://flask-${GUID}.${DOMAIN}/crypto-demo"
+echo "http://flask-{guid}.{domain}/crypto-demo"
 ----
 
-Navigate to that URL.
 The app behaves identically — same hashes, same form.
-The difference is what's _under_ the app.
+The difference is what's under the app.
 
 [source,bash,role=execute]
 ----
 podman stop rhhi-hardened && podman rm rhhi-hardened
 ----
-
-== CVE Comparison with Grype
-
-Scan both images and compare:
-
-[source,bash,role=execute]
-----
-grype rhhi-demo:ubi --output table 2>/dev/null | tail -20
-----
-
-[source,bash,role=execute]
-----
-grype rhhi-demo:v1 --output table 2>/dev/null | tail -20
-----
-
-The UBI image carries CVEs from the general-purpose packages included for broad compatibility.
-The HI runtime image contains only what the application needs to run.
-
-[NOTE]
-====
-CVE counts change as patches are released.
-The point is the difference in exposure, not the specific numbers.
-====
-
-== Package Inventory with Syft
-
-Generate an SBOM for the hardened image:
-
-[source,bash,role=execute]
-----
-syft rhhi-demo:v1 -o spdx-json > ~/rhhi-demo-v1.spdx
-----
-
-[source,bash,role=execute]
-----
-jq '.packages | length' ~/rhhi-demo-v1.spdx
-----
-
-[source,bash,role=execute]
-----
-jq '.packages | group_by(.primaryPackagePurpose) | map({type: .[0].primaryPackagePurpose, count: length})' ~/rhhi-demo-v1.spdx
-----
-
-The SBOM shows the RPM base packages alongside the Python packages installed by pip during the build stage.
-
-== Key Insight
-
-The curated HI Python runtime includes only the packages needed for the interpreter to run.
-No compilers, no build tools, no extra RPMs from a general-purpose package set.
-The builder variant carries those tools — but only in the layer used at build time, not in the final image.
 
 Click *Next* to explore what happens when the image enforces FIPS-compliant cryptography.
