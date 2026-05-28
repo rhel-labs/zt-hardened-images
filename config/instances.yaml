@@ -5,7 +5,7 @@ virtualmachines:
     bootloader: efi
     memory: "4G"
     cores: 1
-    image_size: "20G"
+    image_size: "40G"
     tags:
       - key: "AnsibleGroup"
         value: "bastions"
