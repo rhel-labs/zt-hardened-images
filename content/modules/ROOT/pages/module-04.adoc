@@ -29,7 +29,8 @@ The Caddyfile is pre-staged at `~/webserver/Caddyfile`:
 cat ~/webserver/Caddyfile
 ----
 
-It configures Caddy to listen on `:8443` with `tls internal` and reverse proxy to `localhost:8080`.
+It configures Caddy to listen on the lab's external hostname with `tls internal` and reverse proxy to `localhost:8080`.
+Caddy will generate a certificate from its internal CA for that hostname.
 
 [source,bash,role=execute]
 ----

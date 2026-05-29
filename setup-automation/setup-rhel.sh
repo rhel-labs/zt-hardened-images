@@ -25,11 +25,16 @@ cp $SETUP_FILES/flask/Containerfile.fips /home/rhel/flask/Containerfile.fips
 chown -R rhel:rhel /home/rhel/flask
 echo "Flask app files copied" >> /tmp/progress.log
 
-# Copy Caddy webserver files
+# Generate Caddyfile with the provisioned hostname so Caddy issues a cert for the correct SNI
 mkdir -p /home/rhel/webserver
-cp $SETUP_FILES/webserver/Caddyfile /home/rhel/webserver/Caddyfile
+cat > /home/rhel/webserver/Caddyfile << EOF
+caddy-${GUID}.${DOMAIN}:8443 {
+    tls internal
+    reverse_proxy localhost:8080
+}
+EOF
 chown -R rhel:rhel /home/rhel/webserver
-echo "Caddy files copied" >> /tmp/progress.log
+echo "Caddyfile generated" >> /tmp/progress.log
 
 # Cleanup sparse checkout
 rm -rf $TMPDIR
