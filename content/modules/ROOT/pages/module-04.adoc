@@ -40,7 +40,7 @@ podman run -d --pod rhhi-pod --name rhhi-caddy \
 
 == Observe the Certificate Problem
 
-Open the *Caddy (TLS)* tab.
+Navigate to link:https://caddy-{guid}.{domain}/[https://caddy-{guid}.{domain}/^] in your browser.
 You'll see a certificate warning — Caddy generated its own CA and issued a certificate signed by it.
 Your browser doesn't trust that CA.
 

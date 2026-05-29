@@ -20,8 +20,4 @@ antora:
 tabs:
   - name: ">_ terminal"
     url: /wetty
-  - name: "Flask App"
-    url: 'http://flask-${GUID}.${DOMAIN}/crypto-demo'
-  - name: "Caddy (TLS)"
-    url: 'https://caddy-${GUID}.${DOMAIN}/'
 

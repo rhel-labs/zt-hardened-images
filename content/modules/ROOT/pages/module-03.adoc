@@ -29,7 +29,7 @@ FIPS policy is enforced throughout: both the pip installation step and the appli
 podman run -d --name rhhi-fips -p 8080:8080 rhhi-demo:fips
 ----
 
-Open the *Flask App* tab and submit the form.
+Open link:http://flask-{guid}.{domain}/crypto-demo[the crypto demo^] in your browser and submit the form.
 
 You'll see something like:
 
@@ -60,7 +60,7 @@ podman stop rhhi-fips && podman rm rhhi-fips
 podman run -d --name rhhi-hardened -p 8080:8080 rhhi-demo:v1
 ----
 
-Open the *Flask App* tab — MD5 now returns a hex digest.
+Open link:http://flask-{guid}.{domain}/crypto-demo[the crypto demo^] — MD5 now returns a hex digest.
 
 [source,bash,role=execute]
 ----
