@@ -59,10 +59,7 @@ Run it to confirm the app works:
 podman run -d --name rhhi-builder -p 8080:8080 rhhi-demo:builder
 ----
 
-[source,bash,role=execute]
-----
-echo "http://flask-{guid}.{domain}/crypto-demo"
-----
+Open the *Flask App* tab and confirm the app is running.
 
 [source,bash,role=execute]
 ----
@@ -121,11 +118,7 @@ Build tools are in stage one and were never committed to the final image.
 podman run -d --name rhhi-hardened -p 8080:8080 rhhi-demo:v1
 ----
 
-[source,bash,role=execute]
-----
-echo "http://flask-{guid}.{domain}/crypto-demo"
-----
-
+Open the *Flask App* tab.
 The app behaves identically — same hashes, same form.
 The difference is what's under the app.
 

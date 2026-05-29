@@ -22,8 +22,6 @@ tabs:
     url: /wetty
   - name: "Flask App"
     url: 'http://flask-${GUID}.${DOMAIN}/crypto-demo'
-    external: true
   - name: "Caddy (TLS)"
     url: 'https://caddy-${GUID}.${DOMAIN}/'
-    external: true
 

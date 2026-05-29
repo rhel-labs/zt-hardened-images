@@ -18,8 +18,8 @@ podman build -t rhhi-demo:fips -f ~/flask/Containerfile.fips ~/flask
 
 [NOTE]
 ====
-The builder stage is identical to `Containerfile.hardened` — pip runs in the standard builder, not the FIPS runtime.
-The FIPS policy applies at runtime, not during dependency installation.
+The builder stage uses `hi/python:3.12-fips-builder`, the FIPS-compliant build variant.
+FIPS policy is enforced throughout: both the pip installation step and the application runtime run in a FIPS-enforcing environment.
 ====
 
 == Run the FIPS Image
@@ -29,12 +29,7 @@ The FIPS policy applies at runtime, not during dependency installation.
 podman run -d --name rhhi-fips -p 8080:8080 rhhi-demo:fips
 ----
 
-[source,bash,role=execute]
-----
-echo "http://flask-{guid}.{domain}/crypto-demo"
-----
-
-Navigate to that URL and submit the form.
+Open the *Flask App* tab and submit the form.
 
 You'll see something like:
 
@@ -65,7 +60,7 @@ podman stop rhhi-fips && podman rm rhhi-fips
 podman run -d --name rhhi-hardened -p 8080:8080 rhhi-demo:v1
 ----
 
-Visit the same URL — MD5 now returns a hex digest.
+Open the *Flask App* tab — MD5 now returns a hex digest.
 
 [source,bash,role=execute]
 ----

@@ -39,12 +39,7 @@ Keep it in mind as the comparison point for the rest of the lab.
 podman run -d --name rhhi-ubi -p 8080:8080 rhhi-demo:ubi
 ----
 
-[source,bash,role=execute]
-----
-echo "http://flask-{guid}.{domain}/crypto-demo"
-----
-
-Navigate to that URL, enter some text, and click *Hash*.
+Open the *Flask App* tab, enter some text, and click *Hash*.
 All three algorithms — MD5, SHA-256, SHA-512 — return a hex digest.
 MD5 succeeds here.
 Keep that in mind.

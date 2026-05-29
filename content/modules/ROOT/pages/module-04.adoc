@@ -40,18 +40,13 @@ podman run -d --pod rhhi-pod --name rhhi-caddy \
 
 == Observe the Certificate Problem
 
-[source,bash,role=execute]
-----
-echo "https://caddy-{guid}.{domain}/"
-----
-
-Open that URL in your browser.
+Open the *Caddy (TLS)* tab.
 You'll see a certificate warning — Caddy generated its own CA and issued a certificate signed by it.
 Your browser doesn't trust that CA.
 
 `curl` from the terminal fails the same way:
 
-[source,bash,role=execute]
+[source,bash,subs=attributes+,role=execute]
 ----
 curl https://caddy-{guid}.{domain}/
 ----
@@ -61,30 +56,34 @@ The right fix is to trust the CA, not skip verification.
 
 == Extract the CA Certificate
 
-Caddy writes its internal CA to `/data/caddy/pki/authorities/local/root.crt` inside the running container.
+Caddy writes its internal CA key and certificate to `/data/caddy/pki/authorities/local/` inside the running container.
+Extract both files and combine them into a single PEM that the `trust` command expects:
 
 [source,bash,role=execute]
 ----
-podman cp rhhi-caddy:/data/caddy/pki/authorities/local/root.crt ~/caddy-root.crt
+podman cp rhhi-caddy:/data/caddy/pki/authorities/local/root.key .
+podman cp rhhi-caddy:/data/caddy/pki/authorities/local/root.crt .
+cat root.key root.crt > ca.pem
 ----
 
 [source,bash,role=execute]
 ----
-openssl x509 -in ~/caddy-root.crt -noout -subject -dates
+openssl x509 -in root.crt -noout -subject -dates
 ----
 
 == Build a Trusted curl Image
 
 `hi/curl:latest-builder` includes the `trust` command.
-Use it in a builder stage to add the CA, then copy only the resulting PKI trust files into the lean runtime.
+Use it in a builder stage to add the CA, then copy only the resulting trust store into the lean runtime.
 
 [source,bash,role=execute]
 ----
 cat > ~/Containerfile.curl << 'EOF'
 FROM registry.access.redhat.com/hi/curl:latest-builder AS build
-COPY caddy-root.crt /tmp/caddy-root.crt
+COPY ca.pem /tmp/ca.pem
 USER root
-RUN trust anchor /tmp/caddy-root.crt
+RUN trust anchor /tmp/ca.pem
+USER ${CONTAINER_DEFAULT_USER}
 
 FROM registry.access.redhat.com/hi/curl:latest
 COPY --from=build /etc/pki/ca-trust/extracted /etc/pki/ca-trust/extracted
@@ -100,14 +99,14 @@ podman build -t rhhi-curl:trusted -f ~/Containerfile.curl ~
 
 The standard `hi/curl` image doesn't trust the Caddy CA:
 
-[source,bash,role=execute]
+[source,bash,subs=attributes+,role=execute]
 ----
 podman run --rm registry.access.redhat.com/hi/curl:latest https://caddy-{guid}.{domain}/
 ----
 
 The custom image does:
 
-[source,bash,role=execute]
+[source,bash,subs=attributes+,role=execute]
 ----
 podman run --rm rhhi-curl:trusted https://caddy-{guid}.{domain}/
 ----

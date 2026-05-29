@@ -1,7 +1,17 @@
+import os
 from flask import Flask, request, render_template_string
 import hashlib
 
 app = Flask(__name__)
+
+VARIANT = os.environ.get("RHHI_VARIANT", "unknown")
+
+VARIANT_COLORS = {
+    "ubi": "#c00",
+    "hardened": "#006",
+    "fips": "#060",
+}
+VARIANT_COLOR = VARIANT_COLORS.get(VARIANT, "#444")
 
 TEMPLATE = """<!DOCTYPE html>
 <html>
@@ -9,6 +19,7 @@ TEMPLATE = """<!DOCTYPE html>
   <title>rhhi-demo: Crypto Demo</title>
   <style>
     body { font-family: sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+    .variant-banner { background: {{ color }}; color: #fff; padding: 0.5rem 1rem; border-radius: 4px; margin-bottom: 1rem; font-weight: bold; }
     table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
     th, td { text-align: left; padding: 0.5rem; border: 1px solid #ddd; }
     th { background: #f4f4f4; }
@@ -18,6 +29,7 @@ TEMPLATE = """<!DOCTYPE html>
   </style>
 </head>
 <body>
+  <div class="variant-banner">Base image: {{ variant }}</div>
   <h1>rhhi-demo: Crypto Demo</h1>
   <form method="post">
     <input type="text" name="text" value="{{ text }}">
@@ -50,7 +62,8 @@ def crypto_demo():
             results[algo.upper()] = hashlib.new(algo, text.encode()).hexdigest()
         except ValueError as e:
             results[algo.upper()] = f"ERROR: {e}"
-    return render_template_string(TEMPLATE, text=text, results=results)
+    return render_template_string(TEMPLATE, text=text, results=results,
+                                  variant=VARIANT, color=VARIANT_COLOR)
 
 
 if __name__ == "__main__":
