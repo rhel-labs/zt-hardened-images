@@ -39,3 +39,4 @@ virtualmachines:
         service: caddy
         targetPort: 8443
         tls: true
+        tls_termination: Passthrough
