@@ -19,6 +19,7 @@ RUN pip install flask
 COPY app.py /app/app.py
 WORKDIR /app
 EXPOSE 8080
+ENV RHHI_VARIANT=builder
 CMD ["python3", "app.py"]
 EOF
 ----
