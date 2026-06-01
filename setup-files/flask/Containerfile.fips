@@ -8,4 +8,6 @@ COPY app.py /app/app.py
 WORKDIR /app
 EXPOSE 8080
 ENV RHHI_VARIANT=fips
+# Appropriately set the stop signal for the python interpreter executed as PID 1
+STOPSIGNAL SIGINT
 CMD ["python3", "app.py"]
