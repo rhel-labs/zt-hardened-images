@@ -28,9 +28,13 @@ echo "Flask app files copied" >> /tmp/progress.log
 # Generate Caddyfile with the provisioned hostname so Caddy issues a cert for the correct SNI
 mkdir -p /home/rhel/webserver
 cat > /home/rhel/webserver/Caddyfile << EOF
+{
+	auto_https disable_redirects
+}
+
 caddy-${GUID}.${DOMAIN}:8443 {
-    tls internal
-    reverse_proxy localhost:8080
+	tls internal
+	reverse_proxy localhost:8080
 }
 EOF
 chown -R rhel:rhel /home/rhel/webserver
