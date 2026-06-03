@@ -1,20 +1,23 @@
 = TLS Reverse Proxy
 
 Applications in production typically sit behind a reverse proxy that handles TLS.
-This module runs Flask and Caddy in a pod, observes the certificate trust problem, and resolves it by embedding the CA into a custom `hi/curl` image.
+Organizations will often have internal certificates or authorities (CAs) that need to be used to provide appropriate chains of trust for signing.
+This module runs Flask and Caddy in a pod, and relies on Caddy’s built in TLS support to simulate a CA.
 
 == Create a Pod
 
-Pods in Podman share a network namespace.
+Pods in Podman share a network namespace, which makes them a useful tool for running multiple independent containers as a single application.
 Caddy can reach Flask on `localhost:8080` without any explicit container-to-container networking.
+We won't be exposing that port outside the pod, just the TLS port Caddy will use.
 
 [source,bash,role=execute]
 ----
-podman pod create --name rhhi-pod -p 8080:8080 -p 8443:8443
+podman pod create --name rhhi-pod -p 8443:8443
 ----
 
-== Start Flask in the Pod
+== Start the application in the Pod
 
+We'll start the demo application in the pod first.
 [source,bash,role=execute]
 ----
 podman run -d --pod rhhi-pod --name rhhi-flask rhhi-demo:v1
@@ -28,9 +31,14 @@ The Caddyfile is pre-staged at `~/webserver/Caddyfile`:
 ----
 cat ~/webserver/Caddyfile
 ----
+[source,dockerfile]
+----
+include::example$setup-files/flask/Caddyfile[]
+----
 
 It configures Caddy to listen on the lab's external hostname with `tls internal` and reverse proxy to `localhost:8080`.
 Caddy will generate a certificate from its internal CA for that hostname.
+We can just pass our custom Caddyfile as a volume to the image, but for a more robust production use case, it may be better to create a fully custom image.
 
 [source,bash,role=execute]
 ----
@@ -42,8 +50,7 @@ podman run -d --pod rhhi-pod --name rhhi-caddy \
 == Observe the Certificate Problem
 
 Navigate to link:https://caddy-{guid}.{domain}/[https://caddy-{guid}.{domain}/^] in your browser.
-You'll see a certificate warning — Caddy generated its own CA and issued a certificate signed by it.
-Your browser doesn't trust that CA.
+You'll see a certificate warning, your browser doesn't trust that CA. You could examine and proceed, but during pipeline testing that may not be possible.
 
 `curl` from the terminal fails the same way:
 
@@ -66,37 +73,50 @@ podman cp rhhi-caddy:/data/caddy/pki/authorities/local/root.key .
 podman cp rhhi-caddy:/data/caddy/pki/authorities/local/root.crt .
 cat root.key root.crt > ca.pem
 ----
+This is similar to what you'd need from your internal CA.
 
 [source,bash,role=execute]
 ----
 openssl x509 -in root.crt -noout -subject -dates
 ----
 
-== Build a Trusted curl Image
+===  Build custom curl with CA bundle
 
-`hi/curl:latest-builder` includes the `trust` command.
-Use it in a builder stage to add the CA, then copy only the resulting trust store into the lean runtime.
+Using our internal CA as part of the trusted chain, we'd need to embed it in the image for our applications or tools. We'll use the `builder` variant of the `curl` image to create a custom internal `curl` we could use to validate custom certificates in a pipeline.
 
-[source,bash,role=execute]
+This multi-stage pattern is the same we used before. This keeps all of the work of creating the new trust store in our builder and only adds the files we need to our final `curl` tool image.
+
+[source,bash,role=execute,subs=attributes+]
 ----
-cat > ~/Containerfile.curl << 'EOF'
-FROM registry.access.redhat.com/hi/curl:latest-builder AS build
-COPY ca.pem /tmp/ca.pem
+cat > ~/Containerfile.pem << 'EOF'
+FROM {hummingbird-registry}/curl:latest-builder as builder
+
+# Copy the certificate to the image
+COPY ca.pem /tmp/ #<.>
+
+# Temporarily switch to root to add the CA certificate to the trust store
 USER root
-RUN trust anchor /tmp/ca.pem
+RUN trust anchor /tmp/ca.pem <.>
 USER ${CONTAINER_DEFAULT_USER}
 
-FROM registry.access.redhat.com/hi/curl:latest
-COPY --from=build /etc/pki/ca-trust/extracted /etc/pki/ca-trust/extracted
+
+# Runtime stage:
+# Copy the trust store from the builder image to the runtime image
+FROM {hummingbird-registry}/curl:latest
+COPY --from=builder /etc/pki/ca-trust/extracted /etc/pki/ca-trust/extracted <.>
 EOF
 ----
+<.> Copy the custom CA pem to the `build` stage
+<.> Include the custom CA in our trusted root
+<.> Only copy the PKI files into the final image
 
+Now build our new tool with the internal CA trusted.
 [source,bash,role=execute]
 ----
-podman build -t rhhi-curl:trusted -f ~/Containerfile.curl ~
+podman build -t rhht-curl:local-ca -f ~/Containerfile.pem ~
 ----
 
-== Verify TLS
+== Verify the chain with our new image
 
 The standard `hi/curl` image doesn't trust the Caddy CA:
 
@@ -109,11 +129,8 @@ The custom image does:
 
 [source,bash,subs=attributes+,role=execute]
 ----
-podman run --rm rhhi-curl:trusted https://caddy-{guid}.{domain}/
+podman run --rm rhhi-curl:local-ca https://caddy-{guid}.{domain}/
 ----
-
-The request succeeds without `-k`.
-The CA is trusted at the image level — no runtime flags, no verification skipped.
 
 == Wrap Up
 
