@@ -42,6 +42,8 @@ cat /proc/sys/crypto/fips_enabled
 ----
 diff ~/flask/Containerfile.fips ~/flask/Containerfile.hardened
 ----
+
+[source,diff]
 ....
 2c2
  FROM registry.access.redhat.com/hi/python:3.14-fips-builder AS deps
@@ -77,13 +79,7 @@ Open link:http://flask-{guid}.{domain}/crypto-demo[*the demo application*^] in y
 
 You'll see something like:
 
-[options="header"]
-|===
-| Algorithm | Result
-| MD5       | ERROR: [digital envelope routines] unsupported
-| SHA256    | a948904f2f0f479b8f936648a91d4...
-| SHA512    | 36bbe50ed96841d10443bcb67034...
-|===
+image::fips-demo.png[]
 
 The MD5 row now shows an error.
 The FIPS policy is enforced by the container's OpenSSL, not by the application code.

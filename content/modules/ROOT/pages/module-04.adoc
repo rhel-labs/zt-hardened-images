@@ -31,7 +31,7 @@ The Caddyfile is pre-staged at `~/webserver/Caddyfile`:
 ----
 cat ~/webserver/Caddyfile
 ----
-[source,dockerfile]
+[source,json]
 ----
 include::example$flask/Caddyfile[]
 ----
@@ -53,7 +53,7 @@ Navigate to link:https://caddy-{guid}.{domain}/[*the Caddy proxy*^] in your brow
 
 You'll see a certificate warning, your browser doesn't trust that CA. You could examine and proceed, but during pipeline testing that may not be possible.
 
-image::self-signed.png
+image::self-signed.png[]
 
 `curl` from the terminal fails the same way:
 

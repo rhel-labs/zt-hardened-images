@@ -10,11 +10,6 @@ There are three main categories of images provided in the collection of hardened
 
 Hardened images are what's called 'distroless' images. These styles of images are targeted builds that skip certain shells and tools typically found in standard base images. Since package managers are usually part of that missing toolset, that's how the term 'distroless' was coined.
 
-[NOTE]
-====
-Throughout this lab, you'll see files marked with circled numbers and a numbered list following the file. These are to help draw your attention to particular parts of the file. These are part of the source file and also visible in the terminal via `cat` or `vi`. The numbers will not be included if you copy from one of the blocks.
-====
-
 Red Hat Hardened Images for Python come in variants.
 The `default` variant is distroless — no shell, no package manager, only what the interpreter needs at runtime.
 The `builder` variant adds bash, dnf, and shadow-utils for dependency installation.
@@ -206,6 +201,8 @@ podman build -t rhhi-demo:hardened -f ~/flask/Containerfile.hardened ~/flask
 podman run -d --rm --name rhhi-hardened -p 8080:8080 rhhi-demo:hardened
 ----
 Open link:http://flask-{guid}.{domain}/crypto-demo[*the demo application*^] in your browser. 
+
+image::hardened-demo.png[]
 
 The app behaves identically — same hashes, same form.
 The difference is what's under the app.
