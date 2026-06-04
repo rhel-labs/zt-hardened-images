@@ -120,6 +120,8 @@ podman run -d --rm --name rhhi-builder -p 8080:8080 rhhi-demo:builder
 
 Open link:http://flask-{guid}.{domain}/crypto-demo[*the demo application*^] in your browser and confirm the app is working as expected.
 
+image::builder-demo.png[]
+
 Changing existing Containerfiles to use hardened images can be fairly straightforward, as in this case. To help understand the default settings for hardened images, we https://gitlab.com/redhat/hummingbird/containers/-/blob/main/images/python-3-14/hummingbird/default/compat.md[provide tables] that compare them to upstream versions.
 This not only includes the properties, but also the reasoning behind any changes.
 
@@ -180,6 +182,9 @@ cat ~/flask/Containerfile.hardened
 ----
 include::example$flask/Containerfile.hardened[]
 ----
+<.> Stages create intermediate images
+<.> final stage doesn't get an AS, will use the tag from build command
+<.> --from uses the name provided in the FROM AS combination
 
 Building this image, you'll see that `podman` creates a new image each for each set of steps, delimited by the new `FROM` directive.
 The `AS` in that directive let's us refer to those images in later stages.
@@ -222,23 +227,19 @@ localhost/rhhi-demo  builder     1d8177f35b89  22 minutes ago  195 MB
 localhost/rhhi-demo  ubi         5b0d4e2582f9  33 minutes ago  263 MB
 ----
 
+Let's look at the RPM counds.
 Our demo images set an application entrypoint, so we need `--entrypoint` to run `rpm` directly instead.
-The UBI and builder images carry `rpm`; the hardened image does not — that failure is the demonstration.
 
 [source,bash,role=execute]
 ----
 podman run --rm --entrypoint rpm rhhi-demo:ubi -qa | wc -l
 podman run --rm --entrypoint rpm rhhi-demo:builder -qa | wc -l
-----
-
-[source,bash,role=execute]
-----
 podman run --rm --entrypoint rpm rhhi-demo:hardened -qa
 ----
 
-.*Expected output (hardened):*
+.*Expected output (partial):*
 ----
-Error: container create failed with exit code 127: executable file `rpm` not found in $PATH: No such file or directory
+Error: crun: executable file `rpm` not found in $PATH: No such file or directory: OCI runtime attempted to invoke a command that was not found
 ----
 
 The hardened image has no `rpm` and no shell — both are absent by design.
