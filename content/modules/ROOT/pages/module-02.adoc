@@ -25,12 +25,12 @@ Starting with the default variant shows what distroless means in practice.
 
 Create a new Containerfile using the default `hi/python:3.14` runtime:
 
-[source,bash,role=execute]
+[source,bash,role=execute,subs=attributes+]
 ----
 cat > ~/flask/Containerfile.hi << 'EOF'
 # Stage 1: Hardened base image
-FROM {hummingbird-registry}/python:3.14 #<.>
-ENV RHHI_VARIANT=runtime
+FROM {rhhi-registry}/python:3.14 #<.>
+ENV RHHI_VARIANT=builder
 
 # Switch to root from the non-root user to install dependencies
 # By default, these install in /tmp/.local for the non-root user
@@ -100,7 +100,7 @@ vi ~/flask/Containerfile.hi
 [source,dockerfile,subs=attributes+]
 ----
 # Stage 1: Builder base image
-FROM {hummingbird-registry}/python:3.14-builder #<.>
+FROM {rhhi-registry}/python:3.14-builder #<.>
 ----
 <.> The tagging format for `python` images is <version>-builder
 
@@ -134,7 +134,7 @@ There are some other differences in the packages installed and the tools availab
 
 [source,bash,role=execute]
 ----
-podman images my-flasksite
+podman images rhhi-demo
 ----
 
 .*Expected output:*
@@ -147,18 +147,7 @@ The new image is smaller, but we've included everything in the `builder` image i
 
 [source,bash,role=execute]
 ----
-podman exec -it flask-demo /bin/sh -c 'ls -al /app'
-----
-
-
-[source,bash,role=execute]
-----
-podman run --rm rhhi-demo:builder rpm -qa | wc -l
-----
-
-[source,bash,role=execute]
-----
-podman run --rm rhhi-demo:builder rpm -qa
+podman exec -it rhhi-demo:builder /bin/sh -c 'ls -al /app'
 ----
 
 The builder variant carries dnf, bash, shadow-utils, and their dependencies.
@@ -189,7 +178,7 @@ cat ~/flask/Containerfile.hardened
 
 [source,dockerfile]
 ----
-include::example$setup-files/flask/Containerfile.hardened[]
+include::example$flask/Containerfile.hardened[]
 ----
 
 Building this image, you'll see that `podman` creates a new image each for each set of steps, delimited by the new `FROM` directive.
@@ -197,14 +186,14 @@ The `AS` in that directive let's us refer to those images in later stages.
 
 [source,bash,role=execute]
 ----
-podman build -t rhhi-demo:v1 -f ~/flask/Containerfile.hardened ~/flask
+podman build -t rhhi-demo:hardened -f ~/flask/Containerfile.hardened ~/flask
 ----
 
 == Run the Hardened Image
 
 [source,bash,role=execute]
 ----
-podman run -d --name rhhi-hardened -p 8080:8080 rhhi-demo:v1
+podman run -d --rm --name rhhi-hardened -p 8080:8080 rhhi-demo:hardened
 ----
 
 Open link:http://flask-{guid}.{domain}/crypto-demo[the crypto demo^].
@@ -213,16 +202,28 @@ The difference is what's under the app.
 
 [source,bash,role=execute]
 ----
-podman stop rhhi-hardened && podman rm rhhi-hardened
+podman stop rhhi-hardened
 ----
 
 == Compare all our images
 
 [source,bash,role=execute]
 ----
+podman images rhhi-demo
+----
+
+.*Expected output:*
+----
+REPOSITORY              TAG         IMAGE ID      CREATED            SIZE
+localhost/my-flasksite  hi          7355f3daefdc  About a minute ago  182 MB
+localhost/my-flasksite  ubi         472a6a9ebee8  9 minutes ago       254 MB
+----
+
+[source,bash,role=execute]
+----
 podman run --rm rhhi-demo:ubi rpm -qa | wc -l
 podman run --rm rhhi-demo:builder rpm -qa | wc -l
-podman run --rm rhhi-demo:v1 rpm -qa | wc -l
+podman run --rm rhhi-demo:hardened rpm -qa | wc -l
 ----
 
 The multi-stage runtime carries only what the interpreter needs at runtime.

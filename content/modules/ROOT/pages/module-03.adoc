@@ -36,7 +36,7 @@ cat /proc/sys/crypto/fips_enabled
 
 == Build the FIPS Image
 
-`Containerfile.fips` follows the same multi-stage pattern as the hardened image, but uses `hi/python:3.12-fips` variants in the stages.
+`Containerfile.fips` follows the same multi-stage pattern as the hardened image, but uses `hi/python:3.14-fips` variants in the stages.
 
 [source,bash,role=execute]
 ----
@@ -52,7 +52,7 @@ podman build -t rhhi-demo:fips -f ~/flask/Containerfile.fips ~/flask
 
 [NOTE]
 ====
-The builder stage uses `hi/python:3.12-fips-builder`, the FIPS-compliant build variant.
+The builder stage uses `hi/python:3.14-fips-builder`, the FIPS-compliant build variant.
 FIPS policy is enforced throughout: both the pip installation step and the application runtime run in a FIPS-enforcing environment.
 ====
 
@@ -60,7 +60,7 @@ FIPS policy is enforced throughout: both the pip installation step and the appli
 
 [source,bash,role=execute]
 ----
-podman run -d --name rhhi-fips -p 8080:8080 rhhi-demo:fips
+podman run -d --rm --name rhhi-fips -p 8080:8080 rhhi-demo:fips
 ----
 
 Open link:http://flask-{guid}.{domain}/crypto-demo[*the demo application*^] in your browser and submit the form.
@@ -88,19 +88,19 @@ Stop the FIPS container and try the same request against the hardened non-FIPS i
 
 [source,bash,role=execute]
 ----
-podman stop rhhi-fips && podman rm rhhi-fips
+podman stop rhhi-fips
 ----
 
 [source,bash,role=execute]
 ----
-podman run -d --name rhhi-hardened -p 8080:8080 rhhi-demo:v1
+podman run -d --rm --name rhhi-hardened -p 8080:8080 rhhi-demo:hardened
 ----
 
 Open link:http://flask-{guid}.{domain}/crypto-demo[the crypto demo^] — MD5 now returns a hex digest.
 
 [source,bash,role=execute]
 ----
-podman stop rhhi-hardened && podman rm rhhi-hardened
+podman stop rhhi-hardened
 ----
 
 == When Does This Matter?

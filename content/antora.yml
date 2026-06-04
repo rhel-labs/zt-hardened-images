@@ -6,4 +6,4 @@ version: master
 asciidoc:
   attributes:
     rhhi-registry: 'registry.access.redhat.com/hi'
-    ubi-registry: 'registry.access.redhat.com/ubi9'
+    ubi-registry: 'registry.access.redhat.com/ubi10'

@@ -1,13 +1,13 @@
 # Stage 1: Builder base image
-FROM registry.access.redhat.com/hi/python:3.14-builder AS deps
+FROM registry.access.redhat.com/hi/python:3.14-fips-builder AS deps
 USER root
 
 # Install the Python depdencies, no shell errors 
 RUN mkdir -p /install && pip install flask --prefix=/install
 
 #Stage 2: Default runtime image
-FROM registry.access.redhat.com/hi/python:3.14
-ENV RHHI_VARIANT=staged
+FROM registry.access.redhat.com/hi/python:3.14-fips
+ENV RHHI_VARIANT=fips
 
 # Copy just the Python dependencies from the first stage
 COPY --from=deps /install /usr/local

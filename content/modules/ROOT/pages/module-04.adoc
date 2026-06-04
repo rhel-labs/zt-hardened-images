@@ -20,7 +20,7 @@ podman pod create --name rhhi-pod -p 8443:8443
 We'll start the demo application in the pod first.
 [source,bash,role=execute]
 ----
-podman run -d --pod rhhi-pod --name rhhi-flask rhhi-demo:v1
+podman run -d --pod rhhi-pod --name rhhi-flask rhhi-demo:hardened
 ----
 
 == Start Caddy in the Pod
@@ -33,18 +33,18 @@ cat ~/webserver/Caddyfile
 ----
 [source,dockerfile]
 ----
-include::example$setup-files/flask/Caddyfile[]
+include::example$flask/Caddyfile[]
 ----
 
 It configures Caddy to listen on the lab's external hostname with `tls internal` and reverse proxy to `localhost:8080`.
 Caddy will generate a certificate from its internal CA for that hostname.
 We can just pass our custom Caddyfile as a volume to the image, but for a more robust production use case, it may be better to create a fully custom image.
 
-[source,bash,role=execute]
+[source,bash,role=execute,subs=attributes+]
 ----
 podman run -d --pod rhhi-pod --name rhhi-caddy \
   -v ~/webserver/Caddyfile:/etc/caddy/Caddyfile:Z \
-  registry.access.redhat.com/hi/caddy:latest
+  {rhhi-registry}/caddy:latest
 ----
 
 == Observe the Certificate Problem
@@ -89,7 +89,7 @@ This multi-stage pattern is the same we used before. This keeps all of the work 
 [source,bash,role=execute,subs=attributes+]
 ----
 cat > ~/Containerfile.pem << 'EOF'
-FROM {hummingbird-registry}/curl:latest-builder as builder
+FROM {rhhi-registry}/curl:latest-builder as builder
 
 # Copy the certificate to the image
 COPY ca.pem /tmp/ #<.>
@@ -102,7 +102,7 @@ USER ${CONTAINER_DEFAULT_USER}
 
 # Runtime stage:
 # Copy the trust store from the builder image to the runtime image
-FROM {hummingbird-registry}/curl:latest
+FROM {rhhi-registry}/curl:latest
 COPY --from=builder /etc/pki/ca-trust/extracted /etc/pki/ca-trust/extracted <.>
 EOF
 ----
@@ -113,7 +113,7 @@ EOF
 Now build our new tool with the internal CA trusted.
 [source,bash,role=execute]
 ----
-podman build -t rhht-curl:local-ca -f ~/Containerfile.pem ~
+podman build -t rhhi-curl:local-ca -f ~/Containerfile.pem ~
 ----
 
 == Verify the chain with our new image
@@ -122,7 +122,7 @@ The standard `hi/curl` image doesn't trust the Caddy CA:
 
 [source,bash,subs=attributes+,role=execute]
 ----
-podman run --rm registry.access.redhat.com/hi/curl:latest https://caddy-{guid}.{domain}/
+podman run --rm {rhhi-registry}/curl:latest https://caddy-{guid}.{domain}/
 ----
 
 The custom image does:
@@ -139,10 +139,10 @@ Over these four modules, the same Flask application ran on four different bases:
 [options="header"]
 |===
 | Image | Base | Key Characteristic
-| `rhhi-demo:ubi`     | `ubi9/python-312`     | General-purpose, full package set
-| `rhhi-demo:builder` | `hi/python:3.12-builder` | Builder tools present — not for production
-| `rhhi-demo:v1`      | `hi/python:3.12`      | Curated runtime, minimal CVE surface
-| `rhhi-demo:fips`    | `hi/python:3.12-fips` | FIPS enforcement at the OpenSSL level
+| `rhhi-demo:ubi`     | `ubi10/ubi`              | General-purpose, full package set
+| `rhhi-demo:builder` | `hi/python:3.14-builder` | Builder tools present — not for production
+| `rhhi-demo:hardened`      | `hi/python:3.14`         | Curated runtime, minimal CVE surface
+| `rhhi-demo:fips`    | `hi/python:3.14-fips`    | FIPS enforcement at the OpenSSL level
 |===
 
 Red Hat Hardened Images are production-focused variants with a consistent catalog, predictable rebuild cadence, and variant support (default, builder, fips) designed to match the full container lifecycle.

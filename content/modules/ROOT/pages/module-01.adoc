@@ -16,7 +16,7 @@ In this lab, you'll get hands-on with Red Hat Hardened Images. You'll explore th
 
 = UBI Baseline
 
-Red Hat Hardened Images (HI) are a catalog of distroless images designed for secure use: smaller attack surface, non-root by default, rebuilt rapidly when CVEs are patched. These images closely track upstream projects to deliver fixes and features faster.
+Red Hat Hardened Images (RHHI) are a catalog of distroless images designed for secure use: smaller attack surface, non-root by default, rebuilt rapidly when CVEs are patched. These images closely track upstream projects to deliver fixes and features faster.
 
 Red Hat Universal Base Images (UBI) are distribution based images designed for ease of use: easy extendability, broader tool support, backporting for API preservation. These images closely track RHEL to deliver the same packages and lifecycles.
 
@@ -42,7 +42,7 @@ cat ~/flask/Containerfile.ubi
 ----
 [source,dockerfile]
 ----
-include::example$setup-files/flask/Containerfile.ubi[]
+include::example$flask/Containerfile.ubi[]
 ----
 
 This Containerfile is a conventional approach, and will be the comparison point for the rest of the lab.
