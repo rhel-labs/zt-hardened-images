@@ -43,6 +43,16 @@ cat /proc/sys/crypto/fips_enabled
 diff ~/flask/Containerfile.fips ~/flask/Containerfile.hardened
 ----
 ....
+2c2
+ FROM registry.access.redhat.com/hi/python:3.14-fips-builder AS deps
+---
+> FROM registry.access.redhat.com/hi/python:3.14-builder AS deps
+9,10c9,10
+< FROM registry.access.redhat.com/hi/python:3.14-fips
+< ENV RHHI_VARIANT=fips
+---
+> FROM registry.access.redhat.com/hi/python:3.14
+> ENV RHHI_VARIANT=hardened
 ....
 
 [source,bash,role=execute]
@@ -63,7 +73,7 @@ FIPS policy is enforced throughout: both the pip installation step and the appli
 podman run -d --rm --name rhhi-fips -p 8080:8080 rhhi-demo:fips
 ----
 
-Open link:http://flask-{guid}.{domain}/crypto-demo[*the demo application*^] in your browser and submit the form.
+Open link:http://flask-{guid}.{domain}/crypto-demo[*the demo application*^] in your browser. 
 
 You'll see something like:
 
@@ -75,9 +85,9 @@ You'll see something like:
 | SHA512    | 36bbe50ed96841d10443bcb67034...
 |===
 
-The MD5 row shows an error.
-SHA-256 and SHA-512 are FIPS-approved and return results normally.
+The MD5 row now shows an error.
 The FIPS policy is enforced by the container's OpenSSL, not by the application code.
+SHA-256 and SHA-512 are FIPS-approved and return results normally.
 The application didn't change — the base image did.
 The MD5 algorithms used in the application isn't available at all, meaning these sorts of errors show up during early development stages instead of in produciton.
 This container level enforcement can greatly reduces the potential for rework due to environmental constraints that can't be fully replicated in each environment.
@@ -96,7 +106,9 @@ podman stop rhhi-fips
 podman run -d --rm --name rhhi-hardened -p 8080:8080 rhhi-demo:hardened
 ----
 
-Open link:http://flask-{guid}.{domain}/crypto-demo[the crypto demo^] — MD5 now returns a hex digest.
+Open link:http://flask-{guid}.{domain}/crypto-demo[*the demo application*^] in your browser. 
+
+MD5 returns a hex digest as the algorithm is once again available to the application.
 
 [source,bash,role=execute]
 ----

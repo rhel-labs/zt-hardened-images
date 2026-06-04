@@ -49,8 +49,11 @@ podman run -d --pod rhhi-pod --name rhhi-caddy \
 
 == Observe the Certificate Problem
 
-Navigate to link:https://caddy-{guid}.{domain}/[https://caddy-{guid}.{domain}/^] in your browser.
+Navigate to link:https://caddy-{guid}.{domain}/[*the Caddy proxy*^] in your browser.
+
 You'll see a certificate warning, your browser doesn't trust that CA. You could examine and proceed, but during pipeline testing that may not be possible.
+
+image::self-signed.png
 
 `curl` from the terminal fails the same way:
 
@@ -59,8 +62,8 @@ You'll see a certificate warning, your browser doesn't trust that CA. You could 
 curl https://caddy-{guid}.{domain}/
 ----
 
-Using `-k` bypasses verification and the connection works — but that defeats TLS entirely.
-The right fix is to trust the CA, not skip verification.
+Using `-k` bypasses verification — but that defeats TLS entirely.
+The right fix is to trust the CA in the pipeline, not skip verification.
 
 == Extract the CA Certificate
 
@@ -77,7 +80,7 @@ This is similar to what you'd need from your internal CA.
 
 [source,bash,role=execute]
 ----
-openssl x509 -in root.crt -noout -subject -dates
+openssl x509 -in root.crt -noout -subject -issuer -purpose -dates
 ----
 
 ===  Build custom curl with CA bundle
@@ -129,7 +132,7 @@ The custom image does:
 
 [source,bash,subs=attributes+,role=execute]
 ----
-podman run --rm rhhi-curl:local-ca https://caddy-{guid}.{domain}/
+podman run --rm rhhi-curl:local-ca -s https://caddy-{guid}.{domain}/
 ----
 
 == Wrap Up

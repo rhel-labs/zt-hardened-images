@@ -69,7 +69,7 @@ This will help identify the source image for the container as we will re-use thi
 
 [source,bash,role=execute]
 ----
-podman run --rm rhhi-demo:ubi rpm -qa | wc -l
+podman exec --rm rhhi-ubi rpm -qa | wc -l
 ----
 
 UBI includes packages that cover a broad range of use cases: development of new applications, network services, system init services. 

@@ -70,19 +70,24 @@ podman build -t rhhi-demo:default -f ~/flask/Containerfile.hi ~/flask
 
 .*Expected output (partial):*
 ----
-error running container: ... executable file `/bin/sh` not found: No such file or directory
+STEP 4/10: RUN pip install flask
+error running container: from /usr/bin/crun creating container for [/bin/sh -c pip install flask]: executable file `/bin/sh` not found: No such file or directory
+: exit status 1
+Error: building at STEP "RUN pip install flask": while running runtime: exit status 1
+move noted after explanation, highlight it's interfering with the build more
 ----
+What happened here? One of the changes to 'distroless' images like our new `default` is the removal of things like shells.
+Not only will this effect what can happen at runtime, but also impacts the build process.
+The `RUN` step executes provided commands (here `pip install`) by passing them to a shell in the image as a command line where the previous `COPY` instructions do not. 
+
+Without a shell, what can we do? Switch to the `builder` variant.
+
 [NOTE]
 ====
-This failure is deliberate to pivot to our next topic. However if you know a binary or command is available in the image, you can use the "exec form" instead of the "shell form" for `RUN` like `CMD`:
+This failure is deliberate to pivot to our next topic. However if you know a binary or command is available in the image, like `pip` in the python runtime, you can use the "exec form" instead of the "shell form" for `RUN` like `CMD`:
 
 RUN ["/usr/bin/python", "-m",  "pip", "install", " flask" ]
 ====
-
-What happened here? One of the changes to 'distroless' images like our new `default` is the removal of things like shells. 
-The `RUN` step executes provided commands (here `pip install`) by passing them to a shell where the previous `COPY` instructions do not. 
-
-Without a shell, what can we do? Switch to the `builder` variant.
 
 == Switch to the Builder Variant
 
@@ -120,10 +125,6 @@ podman run -d --rm --name rhhi-builder -p 8080:8080 rhhi-demo:builder
 
 Open link:http://flask-{guid}.{domain}/crypto-demo[*the demo application*^] in your browser and confirm the app is working as expected.
 
-[source,bash,role=execute]
-----
-podman stop rhhi-builder 
-----
 Changing existing Containerfiles to use hardened images can be fairly straightforward, as in this case. To help understand the default settings for hardened images, we https://gitlab.com/redhat/hummingbird/containers/-/blob/main/images/python-3-14/hummingbird/default/compat.md[provide tables] that compare them to upstream versions.
 This not only includes the properties, but also the reasoning behind any changes.
 
@@ -139,15 +140,15 @@ podman images rhhi-demo
 
 .*Expected output:*
 ----
-REPOSITORY              TAG         IMAGE ID      CREATED            SIZE
-localhost/my-flasksite  hi          7355f3daefdc  About a minute ago  182 MB
-localhost/my-flasksite  ubi         472a6a9ebee8  9 minutes ago       254 MB
+REPOSITORY           TAG         IMAGE ID      CREATED         SIZE
+localhost/rhhi-demo  builder     1d8177f35b89  48 seconds ago  195 MB
+localhost/rhhi-demo  ubi         5b0d4e2582f9  11 minutes ago  263 MB
 ----
 The new image is smaller, but we've included everything in the `builder` image in our application, including a shell that we won't want in production.
 
 [source,bash,role=execute]
 ----
-podman exec -it rhhi-demo:builder /bin/sh -c 'ls -al /app'
+podman exec -it rhhi-builder /bin/sh -c 'ls -al /app'
 ----
 
 The builder variant carries dnf, bash, shadow-utils, and their dependencies.
@@ -156,6 +157,10 @@ Shipping this image to production is about the equivalent of shipping a slightly
 We get faster CVE resolution, but the size and attack surface is still larger than necessary.  
 How can we ship just what we need for the runtime image to work in production?
 
+[source,bash,role=execute]
+----
+podman stop rhhi-builder 
+----
 == The Multi-Stage Solution
 
 Multi-stage builds allow you to separate the final application artifacts from build time components and to choose the smallest runtimes for production. 
@@ -183,11 +188,16 @@ include::example$flask/Containerfile.hardened[]
 
 Building this image, you'll see that `podman` creates a new image each for each set of steps, delimited by the new `FROM` directive.
 The `AS` in that directive let's us refer to those images in later stages.
+The build output will have a new `[X/Y]` label for each step to show which stage of how many the step is in. 
+This makes finding issues in longer Containerfiles with many stages easier.
 
 [source,bash,role=execute]
 ----
 podman build -t rhhi-demo:hardened -f ~/flask/Containerfile.hardened ~/flask
 ----
+....
+[2/2] STEP 1/9: FROM registry.access.redhat.com/hi/python:3.14
+....
 
 == Run the Hardened Image
 
@@ -195,15 +205,10 @@ podman build -t rhhi-demo:hardened -f ~/flask/Containerfile.hardened ~/flask
 ----
 podman run -d --rm --name rhhi-hardened -p 8080:8080 rhhi-demo:hardened
 ----
+Open link:http://flask-{guid}.{domain}/crypto-demo[*the demo application*^] in your browser. 
 
-Open link:http://flask-{guid}.{domain}/crypto-demo[the crypto demo^].
 The app behaves identically — same hashes, same form.
 The difference is what's under the app.
-
-[source,bash,role=execute]
-----
-podman stop rhhi-hardened
-----
 
 == Compare all our images
 
@@ -214,16 +219,37 @@ podman images rhhi-demo
 
 .*Expected output:*
 ----
-REPOSITORY              TAG         IMAGE ID      CREATED            SIZE
-localhost/my-flasksite  hi          7355f3daefdc  About a minute ago  182 MB
-localhost/my-flasksite  ubi         472a6a9ebee8  9 minutes ago       254 MB
+REPOSITORY           TAG         IMAGE ID      CREATED         SIZE
+localhost/rhhi-demo  hardened    fbd531176581  57 seconds ago  120 MB
+localhost/rhhi-demo  builder     1d8177f35b89  22 minutes ago  195 MB
+localhost/rhhi-demo  ubi         5b0d4e2582f9  33 minutes ago  263 MB
+----
+
+Our demo images set an application entrypoint, so we need `--entrypoint` to run `rpm` directly instead.
+The UBI and builder images carry `rpm`; the hardened image does not — that failure is the demonstration.
+
+[source,bash,role=execute]
+----
+podman run --rm --entrypoint rpm rhhi-demo:ubi -qa | wc -l
+podman run --rm --entrypoint rpm rhhi-demo:builder -qa | wc -l
 ----
 
 [source,bash,role=execute]
 ----
-podman run --rm rhhi-demo:ubi rpm -qa | wc -l
-podman run --rm rhhi-demo:builder rpm -qa | wc -l
-podman run --rm rhhi-demo:hardened rpm -qa | wc -l
+podman run --rm --entrypoint rpm rhhi-demo:hardened -qa
+----
+
+.*Expected output (hardened):*
+----
+Error: container create failed with exit code 127: executable file `rpm` not found in $PATH: No such file or directory
+----
+
+The hardened image has no `rpm` and no shell — both are absent by design.
+This is what distroless means in practice: the binary simply does not exist in the image.
+
+[source,bash,role=execute]
+----
+podman stop rhhi-hardened
 ----
 
 The multi-stage runtime carries only what the interpreter needs at runtime.
