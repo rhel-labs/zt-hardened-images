@@ -8,6 +8,7 @@ VARIANT = os.environ.get("RHHI_VARIANT", "unknown")
 
 VARIANT_COLORS = {
     "ubi": "#c00",
+    "builder": "#606",
     "hardened": "#006",
     "fips": "#060",
 }
