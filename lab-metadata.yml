@@ -19,9 +19,10 @@ lab:
     time_to_complete: "25" # time in minutes
     
   # Git references for deployment
+  # Use a tag tied to a release for production, main for development
   git_ref:
     production: "prod"
-    development: "dev"
+    development: "main"
 
 # DYNAMIC EXTRACTION SOURCES:
 # ===========================
