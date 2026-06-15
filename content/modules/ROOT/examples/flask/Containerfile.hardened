@@ -7,7 +7,6 @@ RUN mkdir -p /install && pip install flask --prefix=/install
 
 #Stage 2: Default runtime image # <.>
 FROM registry.access.redhat.com/hi/python:3.14
-ENV RHHI_VARIANT=hardened
 
 # Copy just the Python dependencies from the first stage # <.>
 COPY --from=deps /install /usr/local
@@ -24,6 +23,7 @@ USER ${CONTAINER_DEFAULT_USER}
 
 # Expose the port Flask will listen on
 EXPOSE 8080
+ENV RHHI_VARIANT=hardened
 
 # Appropriately set the stop signal for the python interpreter executed as PID 1
 STOPSIGNAL SIGINT

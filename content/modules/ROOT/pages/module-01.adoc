@@ -17,6 +17,7 @@ In this lab, you'll get hands-on with Red Hat Hardened Images. You'll explore th
 = UBI Baseline
 
 Red Hat Hardened Images (RHHI) are a catalog of distroless images designed for secure use: smaller attack surface, non-root by default, rebuilt rapidly when CVEs are patched. These images closely track upstream projects to deliver fixes and features faster.
+If this is the first time you've head any of these terms, not to worry, we'll talk more about them in a bit.
 
 Red Hat Universal Base Images (UBI) are distribution based images designed for ease of use: easy extendability, broader tool support, backporting for API preservation. These images closely track RHEL to deliver the same packages and lifecycles.
 
@@ -71,7 +72,7 @@ image::ubi-demo.png[]
 
 Feel free to enter some text, and click *Hash*.
 All three algorithms — MD5, SHA-256, SHA-512 — return a hex digest of the text.
-You can also see the output of the `ENV` variable from the Containerfile in the banner.
+You can also see the starting image in the banner at the top of the page.
 This will help identify the source image for the container as we will re-use this URL throughout the lab.
 
 == What's in the Image?
@@ -91,4 +92,4 @@ That breadth is convenient for development but is surface area a production runt
 podman stop rhhi-ubi
 ----
 
-Now that we've established the baseline application functionality on a traditional UBI base iamge, let's explore the changes brought by Red Hat Hardened Images.
+Now that we've established the baseline application functionality on a traditional UBI base image, let's explore the changes brought by Red Hat Hardened Images.

@@ -1,6 +1,5 @@
 # Stage 1: Base Image from Red Hat UBI
 FROM registry.access.redhat.com/ubi10/ubi
-ENV RHHI_VARIANT=ubi
 
 # Install pip to manage application dependencies # <1>
 RUN dnf -y install python3-pip && dnf clean all
@@ -26,6 +25,7 @@ USER appuser
 
 # Expose the port Flask will listen on
 EXPOSE 8080
+ENV RHHI_VARIANT=ubi
 
 # Appropriately set the stop signal for the python interpreter executed as PID 1
 STOPSIGNAL SIGINT

@@ -31,7 +31,7 @@ The Caddyfile is pre-staged at `~/webserver/Caddyfile`:
 ----
 cat ~/webserver/Caddyfile
 ----
-[source,json]
+[source,json,subs=attributes+]
 ----
 include::example$flask/Caddyfile[]
 ----
@@ -68,8 +68,8 @@ The right fix is to trust the CA in the pipeline, not skip verification.
 == Extract the CA Certificate
 
 Caddy writes its internal CA key and certificate to `/data/caddy/pki/authorities/local/` inside the running container.
-Extract both files and combine them into a single PEM that the `trust` command expects:
-
+Extract the root certificate; we'll use this with the `trust` tool later.
+////
 [source,bash,role=execute]
 ----
 podman cp rhhi-caddy:/data/caddy/pki/authorities/local/root.key .
@@ -77,7 +77,12 @@ podman cp rhhi-caddy:/data/caddy/pki/authorities/local/root.crt .
 cat root.key root.crt > ca.pem
 ----
 This is similar to what you'd need from your internal CA.
+////
 
+[source,bash,role=execute]
+----
+podman cp rhhi-caddy:/data/caddy/pki/authorities/local/root.crt .
+----
 [source,bash,role=execute]
 ----
 openssl x509 -in root.crt -noout -subject -issuer -purpose -dates
@@ -122,21 +127,21 @@ cat > ~/Containerfile.pem << 'EOF'
 FROM {rhhi-registry}/curl:latest-builder as builder
 
 # Copy the certificate to the image
-COPY ca.pem /tmp/ #<.>
+COPY root.crt /tmp/ # <.>
 
 # Temporarily switch to root to add the CA certificate to the trust store
 USER root
-RUN trust anchor /tmp/ca.pem <.>
+RUN trust anchor /tmp/root.crt # <.>
 USER ${CONTAINER_DEFAULT_USER}
 
 
 # Runtime stage:
 # Copy the trust store from the builder image to the runtime image
 FROM {rhhi-registry}/curl:latest
-COPY --from=builder /etc/pki/ca-trust/extracted /etc/pki/ca-trust/extracted <.>
+COPY --from=builder /etc/pki/ca-trust/extracted /etc/pki/ca-trust/extracted # <.>
 EOF
 ----
-<.> Copy the custom CA pem to the `build` stage
+<.> Copy the custom CA certificate to the `build` stage
 <.> Include the custom CA in our trusted root
 <.> Only copy the PKI files into the final image
 

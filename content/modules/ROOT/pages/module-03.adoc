@@ -46,14 +46,16 @@ diff ~/flask/Containerfile.fips ~/flask/Containerfile.hardened
 [source,diff]
 ....
 2c2
- FROM registry.access.redhat.com/hi/python:3.14-fips-builder AS deps
+< FROM registry.access.redhat.com/hi/python:3.14-fips-builder AS deps
 ---
 > FROM registry.access.redhat.com/hi/python:3.14-builder AS deps
-9,10c9,10
+9c9
 < FROM registry.access.redhat.com/hi/python:3.14-fips
-< ENV RHHI_VARIANT=fips
 ---
 > FROM registry.access.redhat.com/hi/python:3.14
+26c26
+< ENV RHHI_VARIANT=fips
+---
 > ENV RHHI_VARIANT=hardened
 ....
 
@@ -120,6 +122,6 @@ The same application, unmodified, runs on UBI, hardened, or FIPS — but its beh
 This is the difference between hoping your application is compliant and verifying it is.
 
 While this example uses the FIPS specific image, this is also how we expect other new benchmark compliant images to behave in the future.
-We currentply have plans for CIS and STIG images that can be used in the same way.
+We currently have plans for CIS and STIG images that can be used in the same way.
 
 Another common customization is additional SSL certificates. We'll explore how we can add things other than packages to images in the next section.

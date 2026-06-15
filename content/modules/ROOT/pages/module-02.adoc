@@ -25,7 +25,6 @@ Create a new Containerfile using the default `hi/python:3.14` runtime:
 cat > ~/flask/Containerfile.hi << 'EOF'
 # Stage 1: Hardened base image
 FROM {rhhi-registry}/python:3.14 #<.>
-ENV RHHI_VARIANT=builder
 
 # Switch to root from the non-root user to install dependencies
 # By default, these install in /tmp/.local for the non-root user
@@ -44,6 +43,7 @@ USER ${CONTAINER_DEFAULT_USER} #<.>
 
 # Expose the port Flask will listen on
 EXPOSE 8080
+ENV RHHI_VARIANT=builder
 
 # Appropriately set the stop signal for the python interpreter executed as PID 1
 STOPSIGNAL SIGINT
@@ -186,15 +186,15 @@ include::example$flask/Containerfile.hardened[]
 <.> final stage doesn't get an AS, will use the tag from build command
 <.> --from uses the name provided in the FROM AS combination
 
-Building this image, you'll see that `podman` creates a new image each for each set of steps, delimited by the new `FROM` directive.
-The `AS` in that directive let's us refer to those images in later stages.
-The build output will have a new `[X/Y]` label for each step to show which stage of how many the step is in. 
-This makes finding issues in longer Containerfiles with many stages easier.
-
 [source,bash,role=execute]
 ----
 podman build -t rhhi-demo:hardened -f ~/flask/Containerfile.hardened ~/flask
 ----
+Building this image, you'll see that `podman` creates a new image for each set of steps, delimited by the new `FROM` directive.
+The `AS` in that directive let's us refer to those images in later stages.
+The build output will have a new `[X/Y]` label for each step to show which stage of how many the step is in. 
+This makes finding issues in longer Containerfiles with many stages easier.
+
 ....
 [2/2] STEP 1/9: FROM registry.access.redhat.com/hi/python:3.14
 ....
