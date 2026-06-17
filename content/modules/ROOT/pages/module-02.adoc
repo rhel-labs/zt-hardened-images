@@ -109,6 +109,13 @@ FROM {rhhi-registry}/python:3.14-builder #<.>
 ----
 podman build -t rhhi-demo:builder -f ~/flask/Containerfile.hi ~/flask
 ----
+....
+STEP 10/10: ENTRYPOINT ["python", "./app.py"]
+COMMIT rhhi-demo:builder
+--> 5dcfe9775e45
+Successfully tagged localhost/rhhi-demo:builder
+5dcfe9775e45221ead81a764e5052cc8b4dff94178a7d6fa9f510df71b32054f
+....
 
 The build succeeds.
 Run it to confirm the app works:
