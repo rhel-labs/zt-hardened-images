@@ -1,3 +1,4 @@
+= Introduction to Red Hat Hardened Images
 .*Lab Overview*
 [sidebar]
 --
@@ -66,7 +67,7 @@ NOTE: The `rhhi-demo:ubi` image has been pre-built
 podman run -d --rm --name rhhi-ubi -p 8080:8080 rhhi-demo:ubi
 ----
 
-Open link:http://flask-{guid}.{domain}/crypto-demo[*the demo application*^] in your browser. 
+Open http://flask-{guid}.{domain}/crypto-demo[*the demo application*^] in your browser. 
 
 image::ubi-demo.png[]
 
