@@ -70,6 +70,11 @@ podman run -d --rm --name rhhi-ubi -p 8080:8080 rhhi-demo:ubi
 Open http://flask-{guid}.{domain}/crypto-demo[*the demo application*^] in your browser. 
 
 image::ubi-demo.png[]
+[WARNING]
+====
+If you are using a Chromium based browser, recent changes to the default HSTS policy may rewrite the application URL to HTTPS from HTTP and you will get an error page. 
+Edit the URL in the address bar to `http://` and reload the page. This should tell the browser to keep this URL as HTTP for the rest of the lab.
+====
 
 Feel free to enter some text, and click *Hash*.
 All three algorithms — MD5, SHA-256, SHA-512 — return a hex digest of the text.
