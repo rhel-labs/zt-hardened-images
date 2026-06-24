@@ -129,7 +129,7 @@ Open http://flask-{guid}.{domain}/crypto-demo[*the demo application*^] in your b
 
 image::builder-demo.png[]
 
-Changing existing Containerfiles to use hardened images can be fairly straightforward, as in this case. To help understand the default settings for hardened images, we https://gitlab.com/redhat/hummingbird/containers/-/blob/main/images/python-3-14/hummingbird/default/compat.md[provide tables] that compare them to upstream versions.
+Changing existing Containerfiles to use hardened images can be fairly straightforward, as in this case. To help understand the default settings for hardened images, we https://gitlab.com/redhat/hummingbird/containers/-/blob/main/images/python-3-14/hummingbird/default/compat.md[provide tables^] that compare them to upstream versions.
 This not only includes the properties, but also the reasoning behind any changes.
 
 
