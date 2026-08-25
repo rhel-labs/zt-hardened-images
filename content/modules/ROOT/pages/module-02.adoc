@@ -440,6 +440,33 @@ principle holds either way: debug tools live in a disposable sidecar, never in t
 shipped image.
 ====
 
+////
+AUTHOR NOTE (not rendered): possible "Going Further" addition.
+
+A more advanced pattern adds RPMs to a distroless *runtime* image without
+regressing to the builder variant and without breaking the package manifest.
+Instead of COPY --from an install tree (which overwrites the base image's own
+rpmdb), the final stage bind-mounts the builder ephemerally to borrow its dnf
+toolchain and installs into the distroless root in place:
+
+  RUN --mount=type=bind,from=<builder-image>,target=/builder \
+      LD_LIBRARY_PATH=/builder/lib64:/builder/usr/lib64 \
+      RPM_CONFIGDIR=/builder/usr/lib/rpm \
+      /builder/usr/bin/dnf install -y --installroot=/ \
+      --setopt=reposdir=/builder/etc/yum.repos.d <packages>
+
+The base image's rpmdb is updated (dependencies resolved, manifest intact) and
+no package manager is committed to the final image.
+
+Judged too advanced for a hands-on step at this lab's altitude (bind mounts from
+images, borrowed toolchain env, installroot/rpmdb merge semantics), and the lab's
+Flask app needs no runtime RPMs to motivate it. Hold as reference only.
+
+If a blog post covering this concept is published before the lab goes live, add a
+one-line link here (or a short "Going Further" NOTE) pointing readers to it
+instead of teaching the mechanic inline.
+////
+
 [source,bash,role=execute]
 ----
 podman stop rhhi-hardened
