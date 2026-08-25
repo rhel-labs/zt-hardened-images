@@ -111,12 +111,23 @@ installed. Run this one-shot:
 ----
 podman run --rm --entrypoint="" \
   --pid container:rhhi-hardened \
+  --network container:rhhi-hardened \
   --security-opt label=disable \
   --user 0 \
   {rhhi-registry}/core-runtime:latest-builder \
-  rpm --root=/proc/1/root -qa | wc -l #<.>
+  rpm --root=/proc/1/root -qa | wc -l
 ----
-<.> `--root=/proc/1/root` points `rpm` at the *target's* filesystem, not the sidecar's
+
+Each option here is what makes the sidecar useful against a container that has no
+tools of its own:
+
+`--rm`:: Discard the sidecar the moment the command finishes — it leaves nothing behind on the host.
+`--entrypoint=""`:: Clear the image's default entrypoint so we can run an arbitrary command (`rpm`) instead of what the image normally starts.
+`--pid container:rhhi-hardened`:: Join the target's *process* namespace. The application becomes visible as PID 1, which is what lets us reach its filesystem at `/proc/1/root`.
+`--network container:rhhi-hardened`:: Join the target's *network* namespace. This `rpm` query does not need it — it is included here to introduce the flag, since the interactive sidecar below uses it to reach the app on `localhost`.
+`--security-opt label=disable`:: Drop SELinux confinement so the sidecar is allowed to read the target's `/proc` entries and files.
+`--user 0`:: Run as root *inside the sidecar* for full read access to the target. The application itself keeps running as its own non-root user, unchanged.
+`rpm --root=/proc/1/root`:: Point `rpm` at the *target's* filesystem (reached through `/proc`), not the sidecar's own.
 
 .*Expected output (the exact count varies by image build):*
 ----
@@ -151,7 +162,8 @@ podman build -t rhhi-debug -f ~/flask/Containerfile.debug ~/flask
 ----
 
 The hardened image from earlier is still running as `rhhi-hardened`. Attach an
-interactive sidecar to it:
+interactive sidecar to it — the same namespace-sharing flags as the one-shot above,
+now with `-it` for an interactive shell and `rhhi-debug` as the tool image:
 
 [source,bash,role=execute]
 ----
