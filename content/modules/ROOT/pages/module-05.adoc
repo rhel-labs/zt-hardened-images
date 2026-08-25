@@ -198,7 +198,7 @@ podman run --rm rhhi-curl:local-ca -s https://caddy-{guid}.{domain}/crypto-demo
 
 == Wrap Up
 
-Over these four modules, the same Flask application ran on four different bases:
+Over these exercises, the same Flask application ran on four different bases:
 
 [options="header"]
 |===

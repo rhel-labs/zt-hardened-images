@@ -105,7 +105,7 @@ shares the target's process and network namespaces, brings its own tools, and
 disappears when you exit. The production image never changes.
 
 Even though the hardened image has no `rpm`, a sidecar can still answer what is
-installed. Run this one-shot:
+installed. 
 
 [source,bash,role=execute,subs=attributes+]
 ----
@@ -118,29 +118,30 @@ podman run --rm \
   rpm --root=/proc/1/root -qa | wc -l
 ----
 
-Each option here is what makes the sidecar useful against a container that has no
+We need some specific options to make the sidecar useful against a container that has no
 tools of its own:
 
-`--rm`:: Discard the sidecar the moment the command finishes — it leaves nothing behind on the host.
-`--pid container:rhhi-hardened`:: Join the target's *process* namespace. The application becomes visible as PID 1, which is what lets us reach its filesystem at `/proc/1/root`.
-`--network container:rhhi-hardened`:: Join the target's *network* namespace. This `rpm` query does not need it — it is included here to introduce the flag, since the interactive sidecar below uses it to reach the app on `localhost`.
+`--pid container:rhhi-hardened`:: Join the target's *process* namespace. 
+`--network container:rhhi-hardened`:: Join the target's *network* namespace. 
 `--security-opt label=disable`:: Drop SELinux confinement so the sidecar is allowed to read the target's `/proc` entries and files.
-`--user 0`:: Run as root *inside the sidecar* for full read access to the target. The application itself keeps running as its own non-root user, unchanged.
+`--user 0`:: Run as root *inside the sidecar* for full read access to the target. 
 `rpm --root=/proc/1/root`:: Point `rpm` at the *target's* filesystem (reached through `/proc`), not the sidecar's own.
+
+Containers are typically isolated from one another. 
+By changing the SELinux options and explicitly passing a PID and network namespace, the sidecar will be able to interact with the running container instead of getting it's own.
 
 .*Expected output (the exact count varies by image build):*
 ----
 100
 ----
 
-The tool the image lacks now runs from the outside, against the image's own files.
-The rest of this section builds a reusable sidecar and shows how that path into the
-target's filesystem works.
+The tool the image lacks now runs from the sidecar, against the image's own files.
 
 === Build a Debug Sidecar
 
-Build a small debug image once. It is never shipped with the application — it exists
-only to attach to a running container when you need it.
+Our one-shot sidcar was useful because `rpm` just happened to already be installed. For a real debugging tool, we'll need to add our tools. 
+Red Hat Hardened Images ships a set of images targeting dynamically compiled applications, which we will use here as a baseline for our debugger example.
+The `busybox` package is shipped as part of the packages, which will provide us with alternatives to common Linux tools.
 
 [source,bash,role=execute,subs=attributes+]
 ----
@@ -154,15 +155,16 @@ EOF
 ----
 The builder base carries `rpm`, `bash`, `curl`, and coreutils; `busybox` adds the
 process and network inspection applets in a single package.
+Go ahead and build our sidecar.
 
 [source,bash,role=execute]
 ----
 podman build -t rhhi-debug -f ~/flask/Containerfile.debug ~/flask
 ----
 
-The hardened image from earlier is still running as `rhhi-hardened`. Attach an
-interactive sidecar to it — the same namespace-sharing flags as the one-shot above,
-now with `-it` for an interactive shell and `rhhi-debug` as the tool image:
+The application image from earlier is still running as `rhhi-hardened`. 
+Attach an interactive sidecar to it — the same namespace-sharing flags as the one-shot above, now with `bash` as the command.
+This will open an interactive shell that let's us explore our running target container.
 
 [source,bash,role=execute]
 ----
@@ -190,10 +192,10 @@ ls: cannot access '/app': No such file or directory
 
 The sidecar shares the target's _process_ and _network_ namespaces, but each
 container keeps its own _filesystem_. `/app` lives in the target, not here.
+So how did we get the `rpmdb` in our one-shot?
 
-The kernel exposes every process's root filesystem at `/proc/<pid>/root`. Because
-we share the PID namespace, the application is PID 1 — so `/proc/1/root` is the
-target's entire filesystem, viewed from the sidecar:
+The kernel exposes every process's root filesystem at `/proc/<pid>/root`. 
+Because we share the PID namespace, the application is PID 1 — so `/proc/1/root` is the target's entire filesystem, viewed from the sidecar.
 
 [source,bash,role=execute]
 ----
@@ -205,8 +207,8 @@ ls -l /proc/1/root/app
 -rw-r--r--. 1 65532 65532 2224 ... app.py
 ----
 
-To confirm this is the real filesystem and not just an entry showing that a file
-exists somewhere, read the contents:
+Notice the user and group is the default non-root `65532` user.
+To confirm this is the real filesystem and not just an entry showing that a file exists somewhere, read the contents.
 
 [source,bash,role=execute]
 ----
@@ -220,21 +222,20 @@ from flask import Flask, request, render_template_string
 import hashlib
 ----
 
-That is the actual source running as PID 1 — the same path the earlier `rpm --root`
-command used to read the target's package database.
+That's the actual source of our application in it's container.
 
 === Inspecting the Running Process
 
-The application has no tools of its own, but the sidecar does. Because `busybox`
-applets may not be symlinked onto the `PATH`, first list what is available:
+We added `busybox` to give us access to more tools without having to add a lot of extra packages to our sidecar.
+Because `busybox` applets may not be symlinked onto the `PATH`, first list what is available:
 
 [source,bash,role=execute]
 ----
-busybox --list | tr ',' ' '
+busybox --list | pr -t -5
 ----
 
-Every name in that list is an applet you invoke as `busybox <name>`. Use it to see
-the target's processes:
+Every name in that list is an applet you invoke as `busybox <name>`. 
+Use it to see the target's processes:
 
 [source,bash,role=execute]
 ----
@@ -246,8 +247,12 @@ busybox ps -o pid,user,comm
     1 root     python3
 ----
 
-The application is PID 1 in the shared process namespace. Now look at what it is
-listening on:
+The application is PID 1 in the shared process namespace.
+It was run directly via the `CMD` when started, and as the sidecar _joins_ the existing namespace, the application stays as PID 1.
+You can also see the `bash` shell running in the sidecar as PID 2 instead of it's own PID 1 like you normally would expect.
+
+What about open ports?
+We should see the application listening somewhere, and we can also get the PID associated.
 
 [source,bash,role=execute]
 ----
@@ -259,8 +264,9 @@ busybox netstat -tlnp
 tcp   0   0 0.0.0.0:8080   0.0.0.0:*   LISTEN   1/python3
 ----
 
-The socket belongs to PID 1 — the same process. Finally, exercise the app over the
-shared network namespace:
+The socket belongs to PID 1 — the same process. 
+
+Finally, check the app over the shared network namespace:
 
 [source,bash,role=execute]
 ----
@@ -272,8 +278,7 @@ curl -s -o /dev/null -w "HTTP %{http_code}\n" localhost:8080/crypto-demo
 HTTP 200
 ----
 
-`localhost` inside the sidecar is the target's `localhost`, so the request reaches
-the app — none of which required a single tool inside the production image.
+`localhost` inside the sidecar is the application image's `localhost`, so the request reaches the app — none of which required a single tool inside the production image.
 
 Exit the sidecar. Because it was started with `--rm`, it is gone completely, and the
 hardened image is exactly as minimal as before.
@@ -285,7 +290,7 @@ exit
 
 [NOTE]
 ====
-For heavyweight debugging, `procps-ng`, `iproute`, and `gdb` are available in the
+For production debugging, `procps-ng`, `iproute`, and `gdb` are available in the
 hummingbird repositories and can be added to the debug image the same way. The
 principle holds either way: debug tools live in a disposable sidecar, never in the
 shipped image.
