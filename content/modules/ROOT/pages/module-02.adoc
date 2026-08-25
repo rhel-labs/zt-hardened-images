@@ -462,9 +462,17 @@ Judged too advanced for a hands-on step at this lab's altitude (bind mounts from
 images, borrowed toolchain env, installroot/rpmdb merge semantics), and the lab's
 Flask app needs no runtime RPMs to motivate it. Hold as reference only.
 
-If a blog post covering this concept is published before the lab goes live, add a
-one-line link here (or a short "Going Further" NOTE) pointing readers to it
-instead of teaching the mechanic inline.
+A blog post covering this exact concept is in draft: "Chasing Zero CVEs: Lessons
+from a Real Container Build" (Pi-hole rebuilt on core-runtime). It walks the
+RUN --mount install, the installroot/COPY rpmdb-overwrite failure mode, and the
+grype/SBOM payoff. When it publishes, add a one-line link here (or a short
+"Going Further" NOTE) pointing readers to it instead of teaching the mechanic
+inline.
+
+That same post also describes the busybox debug sidecar taught above (a
+core-runtime:builder + busybox image used for `busybox --list`, `rpm -ql`, and
+`dnf --assumeno install` discovery), so it could also be linked from the
+"Looking Inside a Running Distroless Container" section.
 ////
 
 [source,bash,role=execute]
