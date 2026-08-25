@@ -253,6 +253,193 @@ Error: crun: executable file `rpm` not found in $PATH: No such file or directory
 The hardened image has no `rpm` and no shell — both are absent by design.
 This is what distroless means in practice: the binary simply does not exist in the image.
 
+== Looking Inside a Running Distroless Container
+
+The `rpm` command failed because the binary was stripped from the hardened image.
+That is the point of distroless — but it raises a real operational question.
+If a container misbehaves in production and it has no shell, no `rpm`, and no tools,
+how do you inspect it *without* rebuilding it to add those tools back?
+
+The answer is an ephemeral _debug sidecar_: a separate, disposable container that
+shares the target's process and network namespaces, brings its own tools, and
+disappears when you exit. The production image never changes.
+
+Even though the hardened image has no `rpm`, a sidecar can still answer what is
+installed. Run this one-shot:
+
+[source,bash,role=execute,subs=attributes+]
+----
+podman run --rm --entrypoint="" \
+  --pid container:rhhi-hardened \
+  --security-opt label=disable \
+  --user 0 \
+  {rhhi-registry}/core-runtime:latest-builder \
+  rpm --root=/proc/1/root -qa | wc -l #<.>
+----
+<.> `--root=/proc/1/root` points `rpm` at the *target's* filesystem, not the sidecar's
+
+.*Expected output (the exact count varies by image build):*
+----
+100
+----
+
+The tool the image lacks now runs from the outside, against the image's own files.
+The rest of this section builds a reusable sidecar and shows how that path into the
+target's filesystem works.
+
+=== Build a Debug Sidecar
+
+Build a small debug image once. It is never shipped with the application — it exists
+only to attach to a running container when you need it.
+
+[source,bash,role=execute,subs=attributes+]
+----
+cat > ~/flask/Containerfile.debug << 'EOF'
+FROM {rhhi-registry}/core-runtime:latest-builder
+USER root
+RUN dnf -y install busybox && dnf clean all
+USER 65532
+CMD ["/bin/bash"]
+EOF
+----
+The builder base carries `rpm`, `bash`, `curl`, and coreutils; `busybox` adds the
+process and network inspection applets in a single package.
+
+[source,bash,role=execute]
+----
+podman build -t rhhi-debug -f ~/flask/Containerfile.debug ~/flask
+----
+
+The hardened image from earlier is still running as `rhhi-hardened`. Attach an
+interactive sidecar to it:
+
+[source,bash,role=execute]
+----
+podman run --rm -it \
+  --pid container:rhhi-hardened \
+  --network container:rhhi-hardened \
+  --security-opt label=disable \
+  --user 0 \
+  rhhi-debug bash
+----
+
+=== Reaching the App's Files
+
+The natural first move is to list the application directory:
+
+[source,bash,role=execute]
+----
+ls /app
+----
+
+.*Expected output:*
+----
+ls: cannot access '/app': No such file or directory
+----
+
+The sidecar shares the target's _process_ and _network_ namespaces, but each
+container keeps its own _filesystem_. `/app` lives in the target, not here.
+
+The kernel exposes every process's root filesystem at `/proc/<pid>/root`. Because
+we share the PID namespace, the application is PID 1 — so `/proc/1/root` is the
+target's entire filesystem, viewed from the sidecar:
+
+[source,bash,role=execute]
+----
+ls -l /proc/1/root/app
+----
+
+.*Expected output:*
+----
+-rw-r--r--. 1 65532 65532 2224 ... app.py
+----
+
+To confirm this is the real filesystem and not just an entry showing that a file
+exists somewhere, read the contents:
+
+[source,bash,role=execute]
+----
+head /proc/1/root/app/app.py
+----
+
+.*Expected output (partial):*
+----
+import os
+from flask import Flask, request, render_template_string
+import hashlib
+----
+
+That is the actual source running as PID 1 — the same path the earlier `rpm --root`
+command used to read the target's package database.
+
+=== Inspecting the Running Process
+
+The application has no tools of its own, but the sidecar does. Because `busybox`
+applets may not be symlinked onto the `PATH`, first list what is available:
+
+[source,bash,role=execute]
+----
+busybox --list | tr ',' ' '
+----
+
+Every name in that list is an applet you invoke as `busybox <name>`. Use it to see
+the target's processes:
+
+[source,bash,role=execute]
+----
+busybox ps -o pid,user,comm
+----
+
+.*Expected output (partial):*
+----
+    1 root     python3
+----
+
+The application is PID 1 in the shared process namespace. Now look at what it is
+listening on:
+
+[source,bash,role=execute]
+----
+busybox netstat -tlnp
+----
+
+.*Expected output (partial):*
+----
+tcp   0   0 0.0.0.0:8080   0.0.0.0:*   LISTEN   1/python3
+----
+
+The socket belongs to PID 1 — the same process. Finally, exercise the app over the
+shared network namespace:
+
+[source,bash,role=execute]
+----
+curl -s -o /dev/null -w "HTTP %{http_code}\n" localhost:8080/crypto-demo
+----
+
+.*Expected output:*
+----
+HTTP 200
+----
+
+`localhost` inside the sidecar is the target's `localhost`, so the request reaches
+the app — none of which required a single tool inside the production image.
+
+Exit the sidecar. Because it was started with `--rm`, it is gone completely, and the
+hardened image is exactly as minimal as before.
+
+[source,bash,role=execute]
+----
+exit
+----
+
+[NOTE]
+====
+For heavyweight debugging, `procps-ng`, `iproute`, and `gdb` are available in the
+hummingbird repositories and can be added to the debug image the same way. The
+principle holds either way: debug tools live in a disposable sidecar, never in the
+shipped image.
+====
+
 [source,bash,role=execute]
 ----
 podman stop rhhi-hardened
