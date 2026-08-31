@@ -7,6 +7,7 @@ This module runs Flask and Caddy in a pod, and relies on Caddy’s built in TLS 
 == Create a Pod
 
 Pods in Podman share a network namespace, which makes them a useful tool for running multiple independent containers as a single application.
+This operates the same way as the debug sidecar did when executing `curl localhost` in the previous example.
 Caddy can reach Flask on `localhost:8080` without any explicit container-to-container networking.
 We won't be exposing that port outside the pod, just the TLS port Caddy will use.
 
@@ -210,3 +211,5 @@ Over these exercises, the same Flask application ran on four different bases:
 |===
 
 Red Hat Hardened Images are production-focused variants with a consistent catalog, predictable rebuild cadence, and variant support (default, builder, fips) designed to match the full container lifecycle.
+Getting the most out of distroless minimal images may take a little adjustment, but are well worth it for the reduction in toil when securing your applications. 
+The impact of Red Hat Hardened Images on CVE scans, SBOMs, and supply chains can be explored in anotther lab, "Security operations with Red Hat Hardened Images"

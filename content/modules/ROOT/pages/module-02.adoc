@@ -166,7 +166,4 @@ How can we ship just what we need for the runtime image to work in production?
 podman stop rhhi-builder
 ----
 
-The builder variant proves the application runs on a hardened base, but it still
-carries build-time tooling that has no place in production. The next module answers
-the question above with a multi-stage build that keeps only what the runtime needs —
-and then shows how to operate an image that has no shell or tools of its own.
+Stop the container and let's explore some more minimization in the next exercise.

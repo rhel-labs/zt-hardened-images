@@ -99,7 +99,7 @@ SHA-256 and SHA-512 are FIPS-approved and return results normally.
 The FIPS policy is enforced by the container's OpenSSL, not by the application code.
 The application didn't change — the base image did.
 
-The MD5 algorithm used in the application *isn't available at all*, meaning these sorts of errors show up during early development stages instead of in produciton.
+The MD5 algorithm used in the application *isn't available at all*, meaning these sorts of errors show up during early development stages instead of in production.
 This container level enforcement can greatly reduces the potential for rework due to environmental constraints that can't be fully replicated in each environment.
 
 == Verify the Difference

@@ -1,22 +1,19 @@
 = Multi-Stage Builds and Operating Hardened Images
 
-The previous module ended with a working application on the `builder` variant that
-still shipped build-time tooling we don't want in production. This module builds the
-minimal production image with a multi-stage build, compares the result, and then
-shows how to inspect a running distroless container that has no shell or tools.
+Our application works fine, but we're carrying packages we don't explicitly need.
+What we need is a way to separate the run time and build time dependencies. 
+In Python, this may not be as critical as other languages, but we can still look at a pattern that makes that separation possible.
 
 == The Multi-Stage Solution
 
-Multi-stage builds allow you to separate the final application artifacts from build time components and to choose the smallest runtimes for production.
-This keeps with the overall goal of minimal images, reduced attack and risk surfaces. 
-Multi-stage builds provide a good blend of flexibility and control.
+Multi-stage builds allow you to separate the final application artifacts from build time components and even target different production runtime images.
 
-This will combine the use of different variants for different purposes.
-
-`Containerfile.hardened` separates the two concerns.
-Stage one uses the builder variant to install Flask into a prefix directory.
+Stage one uses the builder variant to install Flask into a target directory.
 The standard RUN command works as expected since the `builder` includes a shell.
-Stage two copies only that prefix into the lean default runtime — the builder and its packages are discarded.
+Stage two copies only that directory into the lean default runtime — the builder and its packages are discarded.
+
+These may look like you took 2 different Containerfiles and used `cat` to combine them.
+Each stage is defined by a new `FROM` line, we'll see how that works in practice on our new `Containerfile.hardened` example.
 
 TIP: This is an extremely simple example for the purposes of this lab, production multi-stage builds can be much more complicated to increase isolation between build and runtime dependencies, including full compile chains that only copy final binaries.
 
@@ -90,7 +87,7 @@ podman run --rm --entrypoint rpm rhhi-demo:hardened -qa
 Error: crun: executable file `rpm` not found in $PATH: No such file or directory: OCI runtime attempted to invoke a command that was not found
 ----
 
-The hardened image has no `rpm` and no shell — both are absent by design.
+The multi-stage image has no `rpm` and no shell — both are absent by design since we deployed into the `default` runtime.
 This is what distroless means in practice: the binary simply does not exist in the image.
 
 == Looking Inside a Running Distroless Container
@@ -118,16 +115,20 @@ podman run --rm \
   rpm --root=/proc/1/root -qa | wc -l
 ----
 
-We need some specific options to make the sidecar useful against a container that has no
-tools of its own:
+Remember, new containers get their own filesystem, networking, and isolated process treeby default.
+We need to pass some specific options to make the sidecar "attach" to the container we want to examine.
 
-`--pid container:rhhi-hardened`:: Join the target's *process* namespace. 
-`--network container:rhhi-hardened`:: Join the target's *network* namespace. 
-`--security-opt label=disable`:: Drop SELinux confinement so the sidecar is allowed to read the target's `/proc` entries and files.
-`--user 0`:: Run as root *inside the sidecar* for full read access to the target. 
+`--pid container:rhhi-hardened`:: Join the target's *process* namespace instead of creating one
+`--network container:rhhi-hardened`:: Reuse the target's *network* namespace 
+`--security-opt label=disable`:: Drop SELinux separation so the sidecar is allowed to read the target's `/proc` entries and files
+`--user 0`:: Run as root *inside the sidecar* for full read access to the target 
+
+The `rpm` command also needs to get access to the target filesystem, which is a little harder in a container.
+We can take advantage of the `/proc` filesystem which holds a special pointer to the filesystem of a process. 
+We'll talk more about this later.
+
 `rpm --root=/proc/1/root`:: Point `rpm` at the *target's* filesystem (reached through `/proc`), not the sidecar's own.
 
-Containers are typically isolated from one another. 
 By changing the SELinux options and explicitly passing a PID and network namespace, the sidecar will be able to interact with the running container instead of getting it's own.
 
 .*Expected output (the exact count varies by image build):*
@@ -135,7 +136,7 @@ By changing the SELinux options and explicitly passing a PID and network namespa
 100
 ----
 
-The tool the image lacks now runs from the sidecar, against the image's own files.
+The tool missing in the original image runs from the sidecar, but against the application's own files.
 
 === Build a Debug Sidecar
 
@@ -155,7 +156,7 @@ EOF
 ----
 The builder base carries `rpm`, `bash`, `curl`, and coreutils; `busybox` adds the
 process and network inspection applets in a single package.
-Go ahead and build our sidecar.
+Go ahead and build our new sidecar.
 
 [source,bash,role=execute]
 ----
@@ -245,6 +246,7 @@ busybox ps -o pid,user,comm
 .*Expected output (partial):*
 ----
     1 root     python3
+    2 root     bash
 ----
 
 The application is PID 1 in the shared process namespace.
