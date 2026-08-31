@@ -4,7 +4,7 @@
 [[types]]
 == Available types of hardened images
 
-There are three main categories of images provided in the collection of hardened images: runtimes, services, and tools. Each of these are built in the same fashion but provide different capabilities.  Runtimes include various languages like `java`, `python`, and `dotnet` and also have `-builder` variants to allow for complex application tasks. Services include network based applications like `caddy`, `memcached`, and `haproxy` for deploying minimal versions of common services. Tools include things like `git`, `curl`, and `jq` for running a known containerized version in an isolated manner like within a CI pipeline.
+There are three main categories of images provided in the collection of hardened images: runtimes, services, and tools. Each of these is built in the same fashion but provide different capabilities.  Runtimes include various languages like `java`, `python`, and `dotnet` and also have `-builder` variants to allow for complex application tasks. Services include network based applications like `caddy`, `memcached`, and `haproxy` for deploying minimal versions of common services. Tools include things like `git`, `curl`, and `jq` for running a known containerized version in an isolated manner like within a CI pipeline.
 
 == Distroless vs distribution base images
 
@@ -69,10 +69,9 @@ STEP 4/10: RUN pip install flask
 error running container: from /usr/bin/crun creating container for [/bin/sh -c pip install flask]: executable file `/bin/sh` not found: No such file or directory
 : exit status 1
 Error: building at STEP "RUN pip install flask": while running runtime: exit status 1
-move noted after explanation, highlight it's interfering with the build more
 ----
 What happened here? One of the changes to 'distroless' images like our new `default` is the removal of things like shells.
-Not only will this effect what can happen at runtime, but also impacts the build process.
+Not only will this affect what can happen at runtime, but it will also impact the build process.
 The `RUN` step executes provided commands (here `pip install`) by passing them to a shell in the image as a command line where the previous `COPY` instructions do not. 
 
 Without a shell, what can we do? Switch to the `builder` variant.

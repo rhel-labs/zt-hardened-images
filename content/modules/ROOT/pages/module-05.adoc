@@ -57,7 +57,7 @@ You'll see a certificate warning, your browser doesn't trust that CA. You could 
 
 image::self-signed.png[]
 
-TIP: This screenshot was taken of Firefox, your specfic browser may look different.
+TIP: This screenshot was taken of Firefox, your specific browser may look different.
 
 `curl` from the terminal fails the same way:
 
@@ -212,4 +212,4 @@ Over these exercises, the same Flask application ran on four different bases:
 
 Red Hat Hardened Images are production-focused variants with a consistent catalog, predictable rebuild cadence, and variant support (default, builder, fips) designed to match the full container lifecycle.
 Getting the most out of distroless minimal images may take a little adjustment, but are well worth it for the reduction in toil when securing your applications. 
-The impact of Red Hat Hardened Images on CVE scans, SBOMs, and supply chains can be explored in anotther lab, "Security operations with Red Hat Hardened Images"
+The impact of Red Hat Hardened Images on CVE scans, SBOMs, and supply chains can be explored in another lab, "Security operations with Red Hat Hardened Images"

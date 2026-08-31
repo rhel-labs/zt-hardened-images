@@ -35,7 +35,7 @@ include::example$flask/Containerfile.hardened[]
 podman build -t rhhi-demo:hardened -f ~/flask/Containerfile.hardened ~/flask
 ----
 Building this image, you'll see that `podman` creates a new image for each set of steps, delimited by the new `FROM` directive.
-The `AS` in that directive let's us refer to those images in later stages.
+The `AS` in that directive lets us refer to those images in later stages.
 The build output will have a new `[X/Y]` label for each step to show which stage of how many the step is in. 
 This makes finding issues in longer Containerfiles with many stages easier.
 
@@ -115,7 +115,7 @@ podman run --rm \
   rpm --root=/proc/1/root -qa | wc -l
 ----
 
-Remember, new containers get their own filesystem, networking, and isolated process treeby default.
+Remember, new containers get their own filesystem, networking, and isolated process tree by default.
 We need to pass some specific options to make the sidecar "attach" to the container we want to examine.
 
 `--pid container:rhhi-hardened`:: Join the target's *process* namespace instead of creating one
@@ -129,7 +129,7 @@ We'll talk more about this later.
 
 `rpm --root=/proc/1/root`:: Point `rpm` at the *target's* filesystem (reached through `/proc`), not the sidecar's own.
 
-By changing the SELinux options and explicitly passing a PID and network namespace, the sidecar will be able to interact with the running container instead of getting it's own.
+By changing the SELinux options and explicitly passing a PID and network namespace, the sidecar will be able to interact with the running container instead of getting its own.
 
 .*Expected output (the exact count varies by image build):*
 ----
@@ -140,7 +140,7 @@ The tool missing in the original image runs from the sidecar, but against the ap
 
 === Build a Debug Sidecar
 
-Our one-shot sidcar was useful because `rpm` just happened to already be installed. For a real debugging tool, we'll need to add our tools. 
+Our one-shot sidecar was useful because `rpm` just happened to already be installed. For a real debugging tool, we'll need to add our tools. 
 Red Hat Hardened Images ships a set of images targeting dynamically compiled applications, which we will use here as a baseline for our debugger example.
 The `busybox` package is shipped as part of the packages, which will provide us with alternatives to common Linux tools.
 
@@ -165,7 +165,7 @@ podman build -t rhhi-debug -f ~/flask/Containerfile.debug ~/flask
 
 The application image from earlier is still running as `rhhi-hardened`. 
 Attach an interactive sidecar to it — the same namespace-sharing flags as the one-shot above, now with `bash` as the command.
-This will open an interactive shell that let's us explore our running target container.
+This will open an interactive shell that lets us explore our running target container.
 
 [source,bash,role=execute]
 ----
@@ -223,7 +223,7 @@ from flask import Flask, request, render_template_string
 import hashlib
 ----
 
-That's the actual source of our application in it's container.
+That's the actual source of our application in its container.
 
 === Inspecting the Running Process
 
@@ -251,7 +251,7 @@ busybox ps -o pid,user,comm
 
 The application is PID 1 in the shared process namespace.
 It was run directly via the `CMD` when started, and as the sidecar _joins_ the existing namespace, the application stays as PID 1.
-You can also see the `bash` shell running in the sidecar as PID 2 instead of it's own PID 1 like you normally would expect.
+You can also see the `bash` shell running in the sidecar as PID 2 instead of its own PID 1 like you normally would expect.
 
 What about open ports?
 We should see the application listening somewhere, and we can also get the PID associated.
