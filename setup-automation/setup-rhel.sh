@@ -8,11 +8,12 @@ usermod -aG wheel rhel
 echo "Setup build host for day2 lab" > /tmp/progress.log
 chmod 666 /tmp/progress.log
 
+# Not on EUS image, this will fail
 # Register and install git before library fetch
-dnf -y remove katello-ca-consumer-* 2>/dev/null || true
-subscription-manager clean
-subscription-manager register --activationkey="${ACTIVATION_KEY}" --org="${ORG_ID}" --force
-dnf install -y git podman skopeo
+#dnf -y remove katello-ca-consumer-* 2>/dev/null || true
+#subscription-manager clean
+#subscription-manager register --activationkey="${ACTIVATION_KEY}" --org="${ORG_ID}" --force
+#dnf install -y git podman skopeo
 
 LIBDIR=/tmp/lab-lib-$$
 git clone --depth=1 https://github.com/rhel-labs/lab-setup "${LIBDIR}"
