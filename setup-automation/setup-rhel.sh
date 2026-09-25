@@ -1,27 +1,30 @@
 #!/bin/bash
-USER=rhel
+set -x
+trap 'echo "FATAL: setup failed at line ${LINENO}" >> /tmp/progress.log; exit 1' ERR
 
 echo "Adding wheel" > /root/post-run.log
 usermod -aG wheel rhel
 
-echo "Starting setup for zt-hardened-images" > /tmp/progress.log
-
+echo "Setup build host for day2 lab" > /tmp/progress.log
 chmod 666 /tmp/progress.log
 
+# Register and install git before library fetch
+dnf -y remove katello-ca-consumer-* 2>/dev/null || true
+subscription-manager clean
+subscription-manager register --activationkey="${ACTIVATION_KEY}" --org="${ORG_ID}" --force
+dnf install -y git podman skopeo
+
+LIBDIR=/tmp/lab-lib-$$
+git clone --depth=1 https://github.com/rhel-labs/lab-setup "${LIBDIR}"
+. "${LIBDIR}/common.sh"
+
 # Fetch setup files from the lab git repository
-TMPDIR=/tmp/lab-setup-$$
-git clone --single-branch --branch ${GIT_BRANCH:-main} --no-checkout \
-  --depth=1 --filter=tree:0 ${GIT_REPO} $TMPDIR
-git -C $TMPDIR sparse-checkout set --no-cone /content/modules/ROOT/examples/flask
-git -C $TMPDIR checkout
-SETUP_FILES=$TMPDIR/content/modules/ROOT/examples/flask
+fetch_setup_files content/modules/ROOT/examples/flask
+echo "Setup files staged" >> /tmp/progress.log
 
 # Copy Flask app files
 mkdir -p /home/rhel/flask
-cp $SETUP_FILES/app.py /home/rhel/flask/app.py
-cp $SETUP_FILES/Containerfile.ubi /home/rhel/flask/Containerfile.ubi
-cp $SETUP_FILES/Containerfile.hardened /home/rhel/flask/Containerfile.hardened
-cp $SETUP_FILES/Containerfile.fips /home/rhel/flask/Containerfile.fips
+cp $SETUP_FILES/* /home/rhel/flask/
 chown -R rhel:rhel /home/rhel/flask
 echo "Flask app files copied" >> /tmp/progress.log
 
@@ -40,23 +43,19 @@ EOF
 chown -R rhel:rhel /home/rhel/webserver
 echo "Caddyfile generated" >> /tmp/progress.log
 
-# Cleanup sparse checkout
-rm -rf $TMPDIR
-
 # Pre-pull base images into rhel user's podman storage
-runuser -l rhel -c "podman pull registry.access.redhat.com/ubi10/ubi"
-runuser -l rhel -c "podman pull registry.access.redhat.com/hi/python:3.14-builder"
-runuser -l rhel -c "podman pull registry.access.redhat.com/hi/python:3.14"
-runuser -l rhel -c "podman pull registry.access.redhat.com/hi/python:3.14-fips"
-runuser -l rhel -c "podman pull registry.access.redhat.com/hi/python:3.14-fips-builder"
-runuser -l rhel -c "podman pull registry.access.redhat.com/hi/core-runtime:latest-builder"
-runuser -l rhel -c "podman pull registry.access.redhat.com/hi/caddy:latest"
-runuser -l rhel -c "podman pull registry.access.redhat.com/hi/curl:latest"
-runuser -l rhel -c "podman pull registry.access.redhat.com/hi/curl:latest-builder"
+pull_public_images rhel "registry.access.redhat.com/ubi10/ubi" \
+ "registry.access.redhat.com/hi/python:3.14-builder" \
+ "registry.access.redhat.com/hi/python:3.14" \
+ "registry.access.redhat.com/hi/python:3.14-fips" \
+ "registry.access.redhat.com/hi/python:3.14-fips-builder" \
+ "registry.access.redhat.com/hi/core-runtime:latest-builder" \
+ "registry.access.redhat.com/hi/caddy:latest" \
+ "registry.access.redhat.com/hi/curl:latest" \
+ "registry.access.redhat.com/hi/curl:latest-builder" \
+ "ghcr.io/rhel-labs/rhhi-demo:ubi"
 echo "Base images pre-pulled" >> /tmp/progress.log
 
-# Pre-build UBI baseline image so module-01 participants don't wait for it
-runuser -l rhel -c "podman build -t rhhi-demo:ubi -f /home/rhel/flask/Containerfile.ubi /home/rhel/flask"
-echo "rhhi-demo:ubi pre-built" >> /tmp/progress.log
-
+cleanup_subscription
+cleanup_tmpfiles
 echo "Setup complete" >> /tmp/progress.log

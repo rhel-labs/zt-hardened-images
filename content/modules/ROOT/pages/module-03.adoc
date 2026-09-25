@@ -65,10 +65,10 @@ podman images rhhi-demo
 
 .*Expected output:*
 ----
-REPOSITORY           TAG         IMAGE ID      CREATED         SIZE
-localhost/rhhi-demo  hardened    fbd531176581  57 seconds ago  120 MB
-localhost/rhhi-demo  builder     1d8177f35b89  22 minutes ago  195 MB
-localhost/rhhi-demo  ubi         5b0d4e2582f9  33 minutes ago  263 MB
+REPOSITORY           TAG        	 IMAGE ID      CREATED         SIZE
+localhost/rhhi-demo  hardened   	 fbd531176581  57 seconds ago  120 MB
+localhost/rhhi-demo  builder     	 1d8177f35b89  22 minutes ago  195 MB
+ghcr.io/rhel-labs/rhhi-demo  ubi         5b0d4e2582f9  33 minutes ago  263 MB
 ----
 
 The multi-stage final output is the smallest yet.

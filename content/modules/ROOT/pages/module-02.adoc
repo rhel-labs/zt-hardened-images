@@ -149,9 +149,9 @@ podman images rhhi-demo
 
 .*Expected output:*
 ----
-REPOSITORY           TAG         IMAGE ID      CREATED         SIZE
-localhost/rhhi-demo  builder     1d8177f35b89  48 seconds ago  195 MB
-localhost/rhhi-demo  ubi         5b0d4e2582f9  11 minutes ago  263 MB
+REPOSITORY           TAG                 IMAGE ID      CREATED         SIZE
+localhost/rhhi-demo  builder             1d8177f35b89  48 seconds ago  195 MB
+ghcr.io/rhel-labs/rhhi-demo  ubi         5b0d4e2582f9  11 minutes ago  263 MB
 ----
 The new image is smaller, but we've included everything in the `builder` image in our application, including a shell that we won't want in production.
 

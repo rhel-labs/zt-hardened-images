@@ -64,7 +64,7 @@ NOTE: The `rhhi-demo:ubi` image has been pre-built
 
 [source,bash,role=execute]
 ----
-podman run -d --rm --name rhhi-ubi -p 8080:8080 rhhi-demo:ubi
+podman run -d --rm --name rhhi-ubi -p 8080:8080 ghcr.io/rhel-labs/rhhi-demo:ubi
 ----
 
 Open http://flask-{guid}.{domain}/crypto-demo[*the demo application*^] in your browser. 
