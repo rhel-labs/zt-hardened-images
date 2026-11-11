@@ -1,6 +1,8 @@
 #!/bin/bash
 USER=rhel
 
+dnf install -y podman git jq nano emacs-nw
+
 echo "Adding wheel" > /root/post-run.log
 usermod -aG wheel rhel
 
